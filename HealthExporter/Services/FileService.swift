@@ -8,13 +8,28 @@ class FileService {
         fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
     }
     
+    // Cache directory for exports before user chooses where to save
+    private var exportsDirectory: URL {
+        let cacheDir = fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        let exportsDir = cacheDir.appendingPathComponent("HealthExports")
+        
+        // Create directory if it doesn't exist
+        if !fileManager.fileExists(atPath: exportsDir.path) {
+            try? fileManager.createDirectory(at: exportsDir, withIntermediateDirectories: true, attributes: nil)
+        }
+        
+        return exportsDir
+    }
+    
     func writeFile(data: Data, filename: String) async throws -> URL {
+        // Write directly to Documents directory so it shows up in Files app
         var fileURL = documentsDirectory.appendingPathComponent(filename)
         
         try data.write(to: fileURL, options: [.atomic])
         
+        // Make sure it's visible in Files app
         var resourceValues = URLResourceValues()
-        resourceValues.isExcludedFromBackup = false
+        resourceValues.isExcludedFromBackup = false // Allow backup for user files
         try fileURL.setResourceValues(resourceValues)
         
         return fileURL
@@ -402,6 +417,48 @@ class FileService {
     
     func getExportsDirectory() -> URL {
         return documentsDirectory
+    }
+    
+    // Copy export file to user's chosen location (for sharing)
+    func copyExportToDocuments(_ sourceURL: URL) async throws -> URL {
+        let filename = sourceURL.lastPathComponent
+        var destinationURL = documentsDirectory.appendingPathComponent(filename)
+        
+        // Remove existing file if it exists
+        if fileManager.fileExists(atPath: destinationURL.path) {
+            try fileManager.removeItem(at: destinationURL)
+        }
+        
+        // Copy file
+        try fileManager.copyItem(at: sourceURL, to: destinationURL)
+        
+        // Set to not exclude from backup for user files
+        var resourceValues = URLResourceValues()
+        resourceValues.isExcludedFromBackup = false
+        try destinationURL.setResourceValues(resourceValues)
+        
+        return destinationURL
+    }
+    
+    // Clean up old exports (keep last 10 since they're user files now)
+    func cleanupOldExports() {
+        let exports = listExportFiles()
+        if exports.count > 10 {
+            let exportsToDelete = Array(exports.dropFirst(10))
+            for exportURL in exportsToDelete {
+                try? fileManager.removeItem(at: exportURL)
+            }
+        }
+    }
+    
+    // Get file size for display
+    func getFileSize(for url: URL) -> Int64 {
+        do {
+            let attributes = try fileManager.attributesOfItem(atPath: url.path)
+            return attributes[.size] as? Int64 ?? 0
+        } catch {
+            return 0
+        }
     }
     
     func listExportFiles() -> [URL] {

@@ -154,16 +154,101 @@ struct SettingsView: View {
             Toggle("Enable Auto Export", isOn: $configuration.autoExportEnabled)
             
             if configuration.autoExportEnabled {
-                Picker("Frequency", selection: $configuration.autoExportFrequency) {
-                    ForEach(AutoExportFrequency.allCases, id: \.self) { frequency in
-                        Text(frequency.rawValue).tag(frequency)
+                // Frequency Selection
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Frequency")
+                            .font(.subheadline)
+                        Spacer()
+                    }
+                    
+                    Picker("Frequency", selection: $configuration.autoExportSettings.frequency) {
+                        ForEach(AutoExportFrequency.allCases, id: \.self) { frequency in
+                            Text(frequency.displayName).tag(frequency)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    
+                    Text(configuration.autoExportSettings.frequency.nextRunDescription)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                
+                // Time Selection
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Export Time")
+                            .font(.subheadline)
+                        Spacer()
+                        Text(configuration.autoExportSettings.timeOfDay.displayString)
+                            .font(.subheadline)
+                            .foregroundColor(.blue)
+                    }
+                    
+                    HStack {
+                        Text("Hour:")
+                        Picker("Hour", selection: $configuration.autoExportSettings.timeOfDay.hour) {
+                            ForEach(0..<24, id: \.self) { hour in
+                                Text(String(format: "%02d", hour)).tag(hour)
+                            }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(maxHeight: 80)
+                        
+                        Text("Minute:")
+                        Picker("Minute", selection: $configuration.autoExportSettings.timeOfDay.minute) {
+                            ForEach([0, 15, 30, 45], id: \.self) { minute in
+                                Text(String(format: "%02d", minute)).tag(minute)
+                            }
+                        }
+                        .pickerStyle(.wheel)
+                        .frame(maxHeight: 80)
                     }
                 }
-                .pickerStyle(.automatic)
                 
-                Label("Auto exports will run in the background when possible", systemImage: "clock.arrow.circlepath")
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                // Data Range Selection  
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Data Range to Export")
+                        .font(.subheadline)
+                    
+                    Picker("Data Range", selection: $configuration.autoExportSettings.dataRange) {
+                        ForEach(AutoExportDataRange.allCases, id: \.self) { range in
+                            Text(range.rawValue).tag(range)
+                        }
+                    }
+                    .pickerStyle(.automatic)
+                    
+                    Text(configuration.autoExportSettings.dataRange.description)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                
+                // Auto Export Settings (independent from manual export)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Auto Export Format")
+                        .font(.subheadline)
+                    
+                    Picker("Format", selection: $configuration.autoExportSettings.format) {
+                        ForEach(ExportFormat.allCases, id: \.self) { format in
+                            Text(format.rawValue).tag(format)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    
+                    Toggle("Encrypt Auto Exports", isOn: $configuration.autoExportSettings.encryptionEnabled)
+                }
+                
+                // Summary
+                Label {
+                    Text("Will export \(configuration.autoExportSettings.dataRange.rawValue.lowercased()) \(configuration.autoExportSettings.frequency.nextRunDescription.lowercased()) at \(configuration.autoExportSettings.timeOfDay.displayString) in \(configuration.autoExportSettings.format.rawValue) format")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: "clock.arrow.circlepath")
+                        .foregroundColor(.blue)
+                }
             }
         }
     }

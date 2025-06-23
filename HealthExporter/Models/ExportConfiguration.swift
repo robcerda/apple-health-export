@@ -7,7 +7,7 @@ struct ExportConfiguration: Codable {
     var enabledDataTypes: Set<String>
     var encryptionEnabled: Bool
     var autoExportEnabled: Bool
-    var autoExportFrequency: AutoExportFrequency
+    var autoExportSettings: AutoExportSettings
     var batchSize: Int
     
     static let `default` = ExportConfiguration(
@@ -16,7 +16,7 @@ struct ExportConfiguration: Codable {
         enabledDataTypes: Set(SupportedHealthDataTypes.allTypes.map(\.identifier)),
         encryptionEnabled: false,
         autoExportEnabled: false,
-        autoExportFrequency: .weekly,
+        autoExportSettings: AutoExportSettings.default,
         batchSize: 10_000
     )
     
@@ -38,16 +38,67 @@ enum ExportFormat: String, Codable, CaseIterable {
     }
 }
 
+struct AutoExportSettings: Codable {
+    var frequency: AutoExportFrequency
+    var timeOfDay: TimeOfDay // When to run the export
+    var dataRange: AutoExportDataRange // What time period to export
+    var format: ExportFormat // Can be different from manual export
+    var encryptionEnabled: Bool // Independent encryption setting
+    
+    static let `default` = AutoExportSettings(
+        frequency: .weekly,
+        timeOfDay: TimeOfDay(hour: 2, minute: 0), // 2:00 AM
+        dataRange: .sinceLast,
+        format: .json,
+        encryptionEnabled: false
+    )
+}
+
+struct TimeOfDay: Codable {
+    var hour: Int // 0-23
+    var minute: Int // 0-59
+    
+    var displayString: String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        let calendar = Calendar.current
+        let date = calendar.date(from: DateComponents(hour: hour, minute: minute)) ?? Date()
+        return formatter.string(from: date)
+    }
+}
+
 enum AutoExportFrequency: String, Codable, CaseIterable {
     case daily = "Daily"
     case weekly = "Weekly"
     case monthly = "Monthly"
     
-    var timeInterval: TimeInterval {
+    var displayName: String {
+        return rawValue
+    }
+    
+    var nextRunDescription: String {
         switch self {
-        case .daily: return 24 * 60 * 60
-        case .weekly: return 7 * 24 * 60 * 60
-        case .monthly: return 30 * 24 * 60 * 60
+        case .daily: return "Every day"
+        case .weekly: return "Every Sunday"
+        case .monthly: return "First of each month"
+        }
+    }
+}
+
+enum AutoExportDataRange: String, Codable, CaseIterable {
+    case sinceLast = "Since Last Export"
+    case last24Hours = "Last 24 Hours"
+    case lastWeek = "Last 7 Days"
+    case lastMonth = "Last 30 Days"
+    case allData = "All Available Data"
+    
+    var description: String {
+        switch self {
+        case .sinceLast: return "Export only new data since the last auto-export"
+        case .last24Hours: return "Export the previous 24 hours of data"
+        case .lastWeek: return "Export the previous 7 days of data"
+        case .lastMonth: return "Export the previous 30 days of data"
+        case .allData: return "Export all available health data (large files)"
         }
     }
 }

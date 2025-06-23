@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var showingPasswordAlert = false
     @State private var showingErrorAlert = false
     @State private var showingSuccessAlert = false
+    @State private var showingExportDetails = false
     @State private var exportedFileURL: URL?
     
     init() {
@@ -84,18 +85,18 @@ struct ContentView: View {
                 Button("Open Files App") {
                     openFilesApp()
                 }
-                Button("Share") {
+                Button("Share File") {
                     shareExportedFile()
                 }
                 Button("OK") { }
             } message: {
                 if let fileURL = exportedFileURL {
-                    let fileManager = FileManager.default
-                    let fileSize = (try? fileManager.attributesOfItem(atPath: fileURL.path)[.size] as? Int64) ?? 0
+                    let fileService = FileService()
+                    let fileSize = fileService.getFileSize(for: fileURL)
                     let formattedSize = ByteCountFormatter.string(fromByteCount: fileSize, countStyle: .file)
-                    Text("Your health data has been exported successfully!\n\nFile: \(fileURL.lastPathComponent)\nSize: \(formattedSize)\n\nYou can find it in the Files app under 'On My iPhone > Health Exporter'.")
+                    Text("✅ Export completed successfully!\n\n📁 File: \(fileURL.lastPathComponent)\n📊 Size: \(formattedSize)\n\n📱 Saved to Files app under \"On My iPad > HealthExporter\"")
                 } else {
-                    Text("Your health data has been exported successfully!")
+                    Text("✅ Export completed successfully!")
                 }
             }
         }
@@ -124,6 +125,10 @@ struct ContentView: View {
                     healthKitService.checkAuthorizationStatus()
                 }
             }
+            
+            // Clean up old exports (keep last 10)
+            let fileService = FileService()
+            fileService.cleanupOldExports()
         }
         .onChange(of: healthKitService.isAuthorized) {
             print("📱 HealthKit authorization changed to: \(healthKitService.isAuthorized)")
@@ -482,6 +487,7 @@ struct ContentView: View {
     }
     
     private func openFilesApp() {
+        // Use the Files app URL scheme to open directly to the app's documents
         if let url = URL(string: "shareddocuments://") {
             UIApplication.shared.open(url)
         }
