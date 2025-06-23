@@ -50,8 +50,6 @@ struct ContentView: View {
                 .padding(.horizontal)
                 .padding(.bottom, 30)
             }
-            .navigationTitle("Health Exporter")
-            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Settings") {
@@ -200,9 +198,10 @@ struct ContentView: View {
                         .multilineTextAlignment(.center)
                 }
             } else {
-                Text("✅ Health access granted - \(healthKitService.authorizationStatus)")
-                    .font(.caption)
-                    .foregroundColor(.green)
+                Text("Ready to export your health data")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
             }
         }
         .padding()

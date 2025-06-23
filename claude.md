@@ -1,5 +1,9 @@
 HealthKit Data Exporter Development Guide
-Project Context
+
+## Current Status: ✅ WORKING APP
+This is a **fully functional**, privacy-focused iOS app that successfully exports comprehensive Apple Health data. The app has been tested and verified to work with real health data (83.8 MB exports confirmed).
+
+## Project Context
 You are building a privacy-focused, open-source iOS app that exports Apple Health data for personal analysis. The app makes zero network requests and gives users complete control over their health data.
 Core Principles
 
@@ -24,10 +28,47 @@ Clear, self-documenting variable names
 Group related functionality into extensions
 Handle all HealthKit permission states explicitly
 
-HealthKit Best Practices
-swift// Always check authorization before queries
-guard healthStore.authorizationStatus(for: type) == .sharingAuthorized else { return }
+## Modern UI Patterns (iOS 17.0+)
 
+**Navigation Structure:**
+- Use NavigationStack (not NavigationView) for full-screen layout
+- Avoid sidebar layouts that leave main content area blank
+- Clean, focused header without redundant navigation titles
+
+**SwiftUI Best Practices:**
+- Use modern onChange syntax: `.onChange(of: value) { ... }`
+- Implement symbol effects with gradient and animation
+- LazyVStack with ScrollView for performance with large content
+- Responsive layouts with HStack for side-by-side sections
+
+**User Experience:**
+- Remember authorization state - don't ask for permissions repeatedly
+- Show user-friendly status messages, not debug values
+- Prominent export button as primary action
+- Progressive disclosure - show advanced options after authorization
+
+HealthKit Best Practices
+
+**Authorization Reality:**
+```swift
+// IMPORTANT: HealthKit authorization status is privacy-protective
+// Status may show "denied" even when access is granted
+// Always check if request was made previously:
+let hasRequestedBefore = UserDefaults.standard.bool(forKey: "HasRequestedHealthKitAuth")
+
+// Don't rely solely on authorizationStatus() - it's intentionally misleading for privacy
+// Real test: Try to fetch data - if you get results, you have access
+```
+
+**Focused Permission Requests:**
+```swift
+// Request ~50-60 core data types, not 100+ types
+// iOS permissions dialog works better with focused requests
+// Include: steps, heart rate, sleep, workouts, glucose, body measurements
+```
+
+**Query Patterns:**
+```swift
 // Batch large queries
 let batchSize = 10_000
 
@@ -36,6 +77,7 @@ let batchSize = 10_000
 
 // Handle all HealthKit errors explicitly
 // HealthKit can return partial results with errors
+```
 Data Handling Rules
 
 Never assume data exists - users may have no data for certain types
