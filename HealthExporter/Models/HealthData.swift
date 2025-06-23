@@ -20,10 +20,10 @@ struct ExportMetadata: Codable {
 }
 
 struct HealthDataCollection: Codable {
-    let quantityData: [String: [QuantitySample]]
-    let categoryData: [String: [CategorySample]]
-    let workoutData: [WorkoutSample]
-    let clinicalData: [ClinicalSample]
+    var quantityData: [String: [QuantitySample]]
+    var categoryData: [String: [CategorySample]]
+    var workoutData: [WorkoutSample]
+    var clinicalData: [ClinicalSample]
     
     init() {
         self.quantityData = [:]
@@ -111,12 +111,23 @@ struct DeviceInfo: Codable {
 
 extension HKQuantitySample {
     func toQuantitySample() -> QuantitySample {
+        // Parse value and unit from the quantity's string description
+        // This completely avoids unit conversion issues that cause crashes
+        let description = quantity.description
+        
+        // Extract numeric value (everything before the first space or non-numeric character)
+        let valueString = String(description.prefix(while: { $0.isNumber || $0 == "." || $0 == "-" }))
+        let value = Double(valueString) ?? 0.0
+        
+        // Extract unit (everything after the value and space)
+        let unitString = description.replacingOccurrences(of: valueString, with: "").trimmingCharacters(in: .whitespaces)
+        
         return QuantitySample(
             uuid: uuid.uuidString,
             startDate: startDate,
             endDate: endDate,
-            value: quantity.doubleValue(for: .count()),
-            unit: quantity.description,
+            value: value,
+            unit: unitString.isEmpty ? "count" : unitString,
             sourceRevision: sourceRevision.toSourceRevision(),
             device: device?.toDeviceInfo(),
             metadata: metadata?.compactMapValues { "\($0)" }
@@ -144,7 +155,7 @@ extension HKWorkout {
             uuid: uuid.uuidString,
             startDate: startDate,
             endDate: endDate,
-            workoutActivityType: workoutActivityType.description,
+            workoutActivityType: "\(workoutActivityType.rawValue)",
             duration: duration,
             totalEnergyBurned: totalEnergyBurned?.doubleValue(for: .kilocalorie()),
             totalEnergyBurnedUnit: totalEnergyBurned?.description,
@@ -162,7 +173,7 @@ extension HKWorkout {
 extension HKWorkoutEvent {
     func toWorkoutEvent() -> WorkoutEvent {
         return WorkoutEvent(
-            type: type.description,
+            type: "\(type.rawValue)",
             date: dateInterval.start,
             metadata: metadata?.compactMapValues { "\($0)" }
         )
@@ -175,7 +186,7 @@ extension HKSourceRevision {
             source: source.toSourceInfo(),
             version: version,
             productType: productType,
-            systemVersion: systemVersion
+            systemVersion: "\(operatingSystemVersion.majorVersion).\(operatingSystemVersion.minorVersion).\(operatingSystemVersion.patchVersion)"
         )
     }
 }

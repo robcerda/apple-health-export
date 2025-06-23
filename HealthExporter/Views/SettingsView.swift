@@ -218,7 +218,7 @@ struct SettingsView: View {
                 }
                 
                 Button("Clear History") {
-                    syncState.exportHistory.removeAll()
+                    syncState.clearExportHistory()
                     syncState.save()
                 }
                 .foregroundColor(.red)

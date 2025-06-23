@@ -83,10 +83,12 @@ class ExportService: ObservableObject {
                     isIncremental: isIncremental
                 )
                 
+                print("📊 Fetched \(records.count) records for \(type.identifier)")
+                
                 switch type {
-                case let quantityType as HKQuantityType:
+                case _ as HKQuantityType:
                     healthData.quantityData[type.identifier] = records.compactMap { $0 as? QuantitySample }
-                case let categoryType as HKCategoryType:
+                case _ as HKCategoryType:
                     healthData.categoryData[type.identifier] = records.compactMap { $0 as? CategorySample }
                 case is HKWorkoutType:
                     healthData.workoutData = records.compactMap { $0 as? WorkoutSample }
@@ -144,6 +146,12 @@ class ExportService: ObservableObject {
             await updateProgress(stage: .completed, message: "Export completed successfully!")
             
         } catch {
+            print("❌ Export failed with error: \(error)")
+            print("❌ Error type: \(type(of: error))")
+            if let localizedError = error as? LocalizedError {
+                print("❌ Error description: \(localizedError.errorDescription ?? "No description")")
+            }
+            
             await MainActor.run {
                 lastError = error
             }

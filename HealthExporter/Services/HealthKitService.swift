@@ -13,32 +13,126 @@ class HealthKitService: ObservableObject {
         checkAuthorizationStatus()
     }
     
-    private func checkAuthorizationStatus() {
+    func checkAuthorizationStatus() {
         guard HKHealthStore.isHealthDataAvailable() else {
+            print("❌ HealthKit data not available on this device")
             authorizationStatus = .sharingDenied
+            isAuthorized = false
             return
         }
         
-        let sampleType = HKQuantityType.quantityType(forIdentifier: .heartRate)!
-        authorizationStatus = healthStore.authorizationStatus(for: sampleType)
-        isAuthorized = authorizationStatus == .sharingAuthorized
+        // Check authorization for multiple common types
+        let commonTypes = [
+            HKQuantityType.quantityType(forIdentifier: .heartRate)!,
+            HKQuantityType.quantityType(forIdentifier: .stepCount)!,
+            HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned)!
+        ]
+        
+        var hasAnyAuthorization = false
+        for type in commonTypes {
+            let status = healthStore.authorizationStatus(for: type)
+            print("📱 Status for \(type.identifier): \(status.rawValue)")
+            if status == .sharingAuthorized {
+                hasAnyAuthorization = true
+                authorizationStatus = .sharingAuthorized
+                break
+            } else if status == .notDetermined {
+                authorizationStatus = .notDetermined
+            }
+        }
+        
+        // If we didn't find any authorized types, check if we've made a request before
+        if !hasAnyAuthorization {
+            let hasRequestedBefore = UserDefaults.standard.bool(forKey: "HasRequestedHealthKitAuth")
+            if hasRequestedBefore {
+                // We've made a request before, so assume we have access due to HealthKit privacy
+                print("📱 Assuming authorization granted - previous request made")
+                isAuthorized = true
+            } else {
+                print("📱 No previous request made - authorization needed")
+                isAuthorized = false
+            }
+        } else {
+            isAuthorized = true
+        }
+        
+        print("📱 HealthKit authorization status: \(authorizationStatus.rawValue)")
+        print("📱 Is authorized: \(isAuthorized)")
     }
     
     func requestAuthorization() async throws {
         guard HKHealthStore.isHealthDataAvailable() else {
+            print("❌ HealthKit not available - throwing error")
             throw HealthKitError.healthDataNotAvailable
         }
         
         let typesToRead = Set(SupportedHealthDataTypes.allTypes)
+        print("📱 Requesting authorization for \(typesToRead.count) health data types")
+        
+        // Check current status before request
+        print("📱 BEFORE authorization request:")
+        for type in typesToRead.prefix(5) {
+            let status = healthStore.authorizationStatus(for: type)
+            print("📱   \(type.identifier): \(status.rawValue) (\(statusDescription(status)))")
+        }
         
         try await healthStore.requestAuthorization(toShare: [], read: typesToRead)
+        print("📱 Authorization request completed")
+        
+        // Check status immediately after request
+        print("📱 AFTER authorization request:")
+        var authorizedCount = 0
+        var deniedCount = 0
+        var notDeterminedCount = 0
+        
+        for type in typesToRead {
+            let status = healthStore.authorizationStatus(for: type)
+            switch status {
+            case .sharingAuthorized:
+                authorizedCount += 1
+            case .sharingDenied:
+                deniedCount += 1
+            case .notDetermined:
+                notDeterminedCount += 1
+            @unknown default:
+                break
+            }
+            
+            if typesToRead.count <= 10 { // Only print details if small set
+                print("📱   \(type.identifier): \(status.rawValue) (\(statusDescription(status)))")
+            }
+        }
+        
+        print("📱 Authorization Summary:")
+        print("📱   Authorized: \(authorizedCount)")
+        print("📱   Denied: \(deniedCount)")  
+        print("📱   Not Determined: \(notDeterminedCount)")
+        
+        // Mark that we've made an authorization request
+        UserDefaults.standard.set(true, forKey: "HasRequestedHealthKitAuth")
         
         await MainActor.run {
             checkAuthorizationStatus()
         }
         
-        if authorizationStatus != .sharingAuthorized {
+        print("📱 Final authorization status: \(authorizationStatus.rawValue)")
+        print("📱 Final isAuthorized: \(isAuthorized)")
+        
+        // Even if some permissions are denied, proceed if we have any authorized
+        if authorizedCount == 0 && !isAuthorized {
+            print("❌ No permissions granted at all")
             throw HealthKitError.authorizationDenied
+        } else {
+            print("✅ Proceeding with \(authorizedCount) authorized data types")
+        }
+    }
+    
+    private func statusDescription(_ status: HKAuthorizationStatus) -> String {
+        switch status {
+        case .notDetermined: return "not determined"
+        case .sharingDenied: return "denied"
+        case .sharingAuthorized: return "authorized"
+        @unknown default: return "unknown"
         }
     }
     
@@ -50,9 +144,18 @@ class HealthKitService: ObservableObject {
         anchor: HKQueryAnchor? = nil
     ) async throws -> (samples: [HKQuantitySample], newAnchor: HKQueryAnchor?) {
         
-        guard healthStore.authorizationStatus(for: type) == .sharingAuthorized else {
+        // Due to HealthKit privacy, status may show as denied even when access is granted
+        // Only block if we've never made an authorization request AND status is notDetermined
+        let hasRequestedBefore = UserDefaults.standard.bool(forKey: "HasRequestedHealthKitAuth")
+        let status = healthStore.authorizationStatus(for: type)
+        print("📱 Attempting to fetch \(type.identifier): status=\(status.rawValue), hasRequested=\(hasRequestedBefore)")
+        
+        if !hasRequestedBefore && status == .notDetermined {
+            print("📱 Blocking fetch - no previous request and status is notDetermined")
             throw HealthKitError.authorizationDenied
         }
+        
+        print("📱 Proceeding with data fetch for \(type.identifier)")
         
         return try await withCheckedThrowingContinuation { continuation in
             var predicate: NSPredicate?
@@ -107,9 +210,18 @@ class HealthKitService: ObservableObject {
         anchor: HKQueryAnchor? = nil
     ) async throws -> (samples: [HKCategorySample], newAnchor: HKQueryAnchor?) {
         
-        guard healthStore.authorizationStatus(for: type) == .sharingAuthorized else {
+        // Due to HealthKit privacy, status may show as denied even when access is granted
+        // Only block if we've never made an authorization request AND status is notDetermined
+        let hasRequestedBefore = UserDefaults.standard.bool(forKey: "HasRequestedHealthKitAuth")
+        let status = healthStore.authorizationStatus(for: type)
+        print("📱 Attempting to fetch \(type.identifier): status=\(status.rawValue), hasRequested=\(hasRequestedBefore)")
+        
+        if !hasRequestedBefore && status == .notDetermined {
+            print("📱 Blocking fetch - no previous request and status is notDetermined")
             throw HealthKitError.authorizationDenied
         }
+        
+        print("📱 Proceeding with data fetch for \(type.identifier)")
         
         return try await withCheckedThrowingContinuation { continuation in
             var predicate: NSPredicate?
@@ -164,9 +276,18 @@ class HealthKitService: ObservableObject {
     ) async throws -> (workouts: [HKWorkout], newAnchor: HKQueryAnchor?) {
         
         let workoutType = HKWorkoutType.workoutType()
-        guard healthStore.authorizationStatus(for: workoutType) == .sharingAuthorized else {
+        // Due to HealthKit privacy, status may show as denied even when access is granted
+        // Only block if we've never made an authorization request AND status is notDetermined
+        let hasRequestedBefore = UserDefaults.standard.bool(forKey: "HasRequestedHealthKitAuth")
+        let status = healthStore.authorizationStatus(for: workoutType)
+        print("📱 Attempting to fetch workouts: status=\(status.rawValue), hasRequested=\(hasRequestedBefore)")
+        
+        if !hasRequestedBefore && status == .notDetermined {
+            print("📱 Blocking workout fetch - no previous request and status is notDetermined")
             throw HealthKitError.authorizationDenied
         }
+        
+        print("📱 Proceeding with workout data fetch")
         
         return try await withCheckedThrowingContinuation { continuation in
             var predicate: NSPredicate?
@@ -254,9 +375,18 @@ class HealthKitService: ObservableObject {
         limit: Int = 0
     ) async throws -> [HKClinicalRecord] {
         
-        guard healthStore.authorizationStatus(for: type) == .sharingAuthorized else {
+        // Due to HealthKit privacy, status may show as denied even when access is granted
+        // Only block if we've never made an authorization request AND status is notDetermined
+        let hasRequestedBefore = UserDefaults.standard.bool(forKey: "HasRequestedHealthKitAuth")
+        let status = healthStore.authorizationStatus(for: type)
+        print("📱 Attempting to fetch \(type.identifier): status=\(status.rawValue), hasRequested=\(hasRequestedBefore)")
+        
+        if !hasRequestedBefore && status == .notDetermined {
+            print("📱 Blocking fetch - no previous request and status is notDetermined")
             throw HealthKitError.authorizationDenied
         }
+        
+        print("📱 Proceeding with data fetch for \(type.identifier)")
         
         return try await withCheckedThrowingContinuation { continuation in
             let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: true)

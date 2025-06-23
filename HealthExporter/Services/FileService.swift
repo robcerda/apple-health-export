@@ -9,7 +9,7 @@ class FileService {
     }
     
     func writeFile(data: Data, filename: String) async throws -> URL {
-        let fileURL = documentsDirectory.appendingPathComponent(filename)
+        var fileURL = documentsDirectory.appendingPathComponent(filename)
         
         try data.write(to: fileURL, options: [.atomic])
         

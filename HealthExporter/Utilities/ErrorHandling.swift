@@ -40,14 +40,8 @@ struct ErrorHandler {
             return "HealthKit database is temporarily unavailable."
         case .errorUserCanceled:
             return "Operation cancelled by user."
-        case .errorAnotherWorkoutSessionStarted:
-            return "Another workout session is already active."
-        case .errorUserExitedWorkoutSession:
-            return "User exited the workout session."
         case .errorRequiredAuthorizationDenied:
             return "Required health permissions were denied."
-        case .errorNoWorkoutSession:
-            return "No active workout session found."
         default:
             return "HealthKit error: \(error.localizedDescription)"
         }

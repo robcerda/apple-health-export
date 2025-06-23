@@ -2,13 +2,13 @@ import Foundation
 import HealthKit
 
 struct ExportConfiguration: Codable {
-    let exportFormat: ExportFormat
-    let dateRange: DateRange?
-    let enabledDataTypes: Set<String>
-    let encryptionEnabled: Bool
-    let autoExportEnabled: Bool
-    let autoExportFrequency: AutoExportFrequency
-    let batchSize: Int
+    var exportFormat: ExportFormat
+    var dateRange: DateRange?
+    var enabledDataTypes: Set<String>
+    var encryptionEnabled: Bool
+    var autoExportEnabled: Bool
+    var autoExportFrequency: AutoExportFrequency
+    var batchSize: Int
     
     static let `default` = ExportConfiguration(
         exportFormat: .json,
@@ -110,29 +110,100 @@ struct SupportedHealthDataTypes {
     ]
     
     static let allTypes: [HKSampleType] = {
-        var types: [HKSampleType] = []
+        var allTypes: [HKSampleType] = []
         
-        for identifier in quantityTypes {
-            if let type = HKQuantityType.quantityType(forIdentifier: identifier) {
-                types.append(type)
+        // EXPANDED REQUEST: Common data types users actually have
+        let quantityIdentifiers: [HKQuantityTypeIdentifier] = [
+            // Activity & Fitness (most common)
+            .stepCount, .distanceWalkingRunning, .distanceCycling, .activeEnergyBurned, .basalEnergyBurned, 
+            .flightsClimbed, .appleExerciseTime, .appleStandTime,
+            
+            // Heart Health (very common with Apple Watch)
+            .heartRate, .restingHeartRate, .heartRateVariabilitySDNN, .walkingHeartRateAverage,
+            
+            // Body Measurements (common)
+            .bodyMass, .height, .bodyMassIndex, .bodyFatPercentage, .leanBodyMass,
+            
+            // Health Vitals (if available)
+            .bloodGlucose, .oxygenSaturation, .bodyTemperature, .bloodPressureSystolic, .bloodPressureDiastolic,
+            .respiratoryRate,
+            
+            // Fitness & Performance
+            .vo2Max,
+            
+            // Audio/Environmental
+            .environmentalAudioExposure, .headphoneAudioExposure
+        ]
+        
+        // Category types - common tracking
+        let categoryIdentifiers: [HKCategoryTypeIdentifier] = [
+            .sleepAnalysis, .appleStandHour, .mindfulSession, .toothbrushingEvent, .handwashingEvent,
+            .lowHeartRateEvent, .highHeartRateEvent, .irregularHeartRhythmEvent,
+            
+            // Reproductive health (if applicable)
+            .menstrualFlow, .sexualActivity, .cervicalMucusQuality, .ovulationTestResult,
+            .intermenstrualBleeding,
+            
+            // Audio events
+            .environmentalAudioExposureEvent
+        ]
+        
+        // iOS 14.0+ types
+        if #available(iOS 14.0, *) {
+            let ios14Quantity: [HKQuantityTypeIdentifier] = [
+                .walkingSpeed, .walkingStepLength, .walkingAsymmetryPercentage, .walkingDoubleSupportPercentage,
+                .stairAscentSpeed, .stairDescentSpeed, .sixMinuteWalkTestDistance
+            ]
+            allTypes += ios14Quantity.compactMap { HKQuantityType.quantityType(forIdentifier: $0) }
+            
+            let ios14Category: [HKCategoryTypeIdentifier] = [.headphoneAudioExposureEvent]
+            allTypes += ios14Category.compactMap { HKCategoryType.categoryType(forIdentifier: $0) }
+        }
+        
+        // iOS 14.3+ reproductive health
+        if #available(iOS 14.3, *) {
+            let ios143Category: [HKCategoryTypeIdentifier] = [.contraceptive, .pregnancy, .lactation]
+            allTypes += ios143Category.compactMap { HKCategoryType.categoryType(forIdentifier: $0) }
+        }
+        
+        // iOS 14.5+ Apple Move Time
+        if #available(iOS 14.5, *) {
+            if let appleMoveTime = HKQuantityType.quantityType(forIdentifier: .appleMoveTime) {
+                allTypes.append(appleMoveTime)
             }
         }
         
-        for identifier in categoryTypes {
-            if let type = HKCategoryType.categoryType(forIdentifier: identifier) {
-                types.append(type)
-            }
+        // iOS 15.0+ walking steadiness
+        if #available(iOS 15.0, *) {
+            let ios15Quantity: [HKQuantityTypeIdentifier] = [.appleWalkingSteadiness]
+            allTypes += ios15Quantity.compactMap { HKQuantityType.quantityType(forIdentifier: $0) }
+            
+            let ios15Category: [HKCategoryTypeIdentifier] = [.pregnancyTestResult, .progesteroneTestResult, .appleWalkingSteadinessEvent]
+            allTypes += ios15Category.compactMap { HKCategoryType.categoryType(forIdentifier: $0) }
         }
         
-        types.append(workoutType)
+        // Convert main types to actual types
+        allTypes += quantityIdentifiers.compactMap { HKQuantityType.quantityType(forIdentifier: $0) }
+        allTypes += categoryIdentifiers.compactMap { HKCategoryType.categoryType(forIdentifier: $0) }
         
-        for identifier in clinicalTypes {
-            if let type = HKClinicalType.clinicalType(forIdentifier: identifier) {
-                types.append(type)
-            }
+        // Add workout types (very important)
+        allTypes.append(HKWorkoutType.workoutType())
+        
+        // Add electrocardiogram if available
+        if #available(iOS 14.0, *) {
+            allTypes.append(HKElectrocardiogramType.electrocardiogramType())
         }
         
-        return types
+        // Add clinical data (working separately)
+        let clinicalIdentifiers: [HKClinicalTypeIdentifier] = [
+            .allergyRecord, .conditionRecord, .immunizationRecord, .labResultRecord, .medicationRecord,
+            .procedureRecord, .vitalSignRecord
+        ]
+        allTypes += clinicalIdentifiers.compactMap { HKClinicalType.clinicalType(forIdentifier: $0) }
+        
+        print("📱 Expanded request: asking for \(allTypes.count) health data types")
+        print("📱 Includes: activity, heart, sleep, workouts, glucose, body measurements, reproductive health")
+        return allTypes
     }()
     
     static func displayName(for type: HKSampleType) -> String {

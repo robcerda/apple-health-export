@@ -7,14 +7,14 @@ let package = Package(
         .iOS(.v16)
     ],
     products: [
-        .executable(
+        .library(
             name: "HealthExporter",
             targets: ["HealthExporter"]
         )
     ],
     dependencies: [],
     targets: [
-        .executableTarget(
+        .target(
             name: "HealthExporter",
             dependencies: [],
             path: "HealthExporter",

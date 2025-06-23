@@ -1,0 +1,52 @@
+{
+  "app": {
+    "bundleId": "com.healthexporter.app",
+    "name": "Health Exporter",
+    "subtitle": "Export your health data privately",
+    "category": "HEALTH_AND_FITNESS",
+    "contentRating": "4+",
+    "description": {
+      "short": "Export your Apple Health data for personal analysis with complete privacy control.",
+      "full": "Health Exporter is a privacy-focused app that allows you to export your Apple Health data for personal analysis. Your data never leaves your device unless you explicitly share it.\n\n🔒 PRIVACY FIRST\n• Zero network requests - your data stays on your device\n• No third-party dependencies or analytics\n• Open source and fully auditable\n• Optional AES-256-GCM encryption for sensitive data\n\n📊 COMPREHENSIVE EXPORT\n• All health data types: heart rate, steps, workouts, sleep, clinical records\n• Export formats: JSON and SQLite database\n• Incremental exports - only new data since last export\n• Handles years of health data efficiently\n\n⚡ PERFORMANCE OPTIMIZED\n• Streaming architecture prevents memory crashes\n• Background processing support\n• Real-time progress tracking with cancellation\n• Memory usage under 100MB even with large datasets\n\nPERFECT FOR:\n• Personal health data analysis\n• Backup of health information\n• Data portability and ownership\n• Research and tracking projects\n\nREQUIREMENTS:\n• iOS 16.0 or later\n• iPhone or iPad with HealthKit support\n• Some health data in the Health app\n\nYour health data is precious and personal. Health Exporter gives you complete control over it."
+    },
+    "keywords": [
+      "health",
+      "export",
+      "privacy",
+      "healthkit",
+      "data",
+      "backup",
+      "analysis",
+      "fitness",
+      "medical",
+      "records"
+    ],
+    "supportUrl": "https://github.com/yourusername/health-exporter/issues",
+    "privacyPolicyUrl": "https://github.com/yourusername/health-exporter/blob/main/PRIVACY.md",
+    "version": "1.0",
+    "buildNumber": "1"
+  },
+  "features": [
+    "Privacy-first design - no network requests",
+    "Export all Apple Health data types",
+    "JSON and SQLite export formats",
+    "Optional AES-256-GCM encryption",
+    "Incremental and full export options",
+    "Background processing support",
+    "Memory-efficient for large datasets",
+    "Open source and auditable"
+  ],
+  "screenshots": {
+    "required": {
+      "iphone6.5": [],
+      "iphone5.5": [],
+      "ipadPro12.9": [],
+      "ipadPro11": []
+    }
+  },
+  "appStoreReview": {
+    "notes": "This app requires HealthKit permissions to function. It exports health data locally with no network requests. The app is privacy-focused and designed for personal data analysis.",
+    "demoAccount": null,
+    "attachments": []
+  }
+}

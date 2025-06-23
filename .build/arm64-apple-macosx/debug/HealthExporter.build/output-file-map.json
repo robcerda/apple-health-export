@@ -1,0 +1,77 @@
+{
+  "": {
+    "swift-dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/master.swiftdeps"
+  },
+  "/Users/rob/Scripts/Personal/apple-health-export/HealthExporter/Models/ExportConfiguration.swift": {
+    "dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ExportConfiguration.d",
+    "object": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ExportConfiguration.swift.o",
+    "swiftmodule": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ExportConfiguration~partial.swiftmodule",
+    "swift-dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ExportConfiguration.swiftdeps"
+  },
+  "/Users/rob/Scripts/Personal/apple-health-export/HealthExporter/Models/HealthData.swift": {
+    "dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/HealthData.d",
+    "object": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/HealthData.swift.o",
+    "swiftmodule": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/HealthData~partial.swiftmodule",
+    "swift-dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/HealthData.swiftdeps"
+  },
+  "/Users/rob/Scripts/Personal/apple-health-export/HealthExporter/Models/SyncState.swift": {
+    "dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/SyncState.d",
+    "object": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/SyncState.swift.o",
+    "swiftmodule": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/SyncState~partial.swiftmodule",
+    "swift-dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/SyncState.swiftdeps"
+  },
+  "/Users/rob/Scripts/Personal/apple-health-export/HealthExporter/Services/EncryptionService.swift": {
+    "dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/EncryptionService.d",
+    "object": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/EncryptionService.swift.o",
+    "swiftmodule": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/EncryptionService~partial.swiftmodule",
+    "swift-dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/EncryptionService.swiftdeps"
+  },
+  "/Users/rob/Scripts/Personal/apple-health-export/HealthExporter/Services/ExportService.swift": {
+    "dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ExportService.d",
+    "object": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ExportService.swift.o",
+    "swiftmodule": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ExportService~partial.swiftmodule",
+    "swift-dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ExportService.swiftdeps"
+  },
+  "/Users/rob/Scripts/Personal/apple-health-export/HealthExporter/Services/FileService.swift": {
+    "dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/FileService.d",
+    "object": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/FileService.swift.o",
+    "swiftmodule": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/FileService~partial.swiftmodule",
+    "swift-dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/FileService.swiftdeps"
+  },
+  "/Users/rob/Scripts/Personal/apple-health-export/HealthExporter/Services/HealthKitService.swift": {
+    "dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/HealthKitService.d",
+    "object": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/HealthKitService.swift.o",
+    "swiftmodule": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/HealthKitService~partial.swiftmodule",
+    "swift-dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/HealthKitService.swiftdeps"
+  },
+  "/Users/rob/Scripts/Personal/apple-health-export/HealthExporter/Utilities/DateFormatters.swift": {
+    "dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/DateFormatters.d",
+    "object": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/DateFormatters.swift.o",
+    "swiftmodule": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/DateFormatters~partial.swiftmodule",
+    "swift-dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/DateFormatters.swiftdeps"
+  },
+  "/Users/rob/Scripts/Personal/apple-health-export/HealthExporter/Utilities/ErrorHandling.swift": {
+    "dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ErrorHandling.d",
+    "object": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ErrorHandling.swift.o",
+    "swiftmodule": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ErrorHandling~partial.swiftmodule",
+    "swift-dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ErrorHandling.swiftdeps"
+  },
+  "/Users/rob/Scripts/Personal/apple-health-export/HealthExporter/Views/ContentView.swift": {
+    "dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ContentView.d",
+    "object": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ContentView.swift.o",
+    "swiftmodule": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ContentView~partial.swiftmodule",
+    "swift-dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ContentView.swiftdeps"
+  },
+  "/Users/rob/Scripts/Personal/apple-health-export/HealthExporter/Views/ProgressView.swift": {
+    "dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ProgressView.d",
+    "object": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ProgressView.swift.o",
+    "swiftmodule": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ProgressView~partial.swiftmodule",
+    "swift-dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/ProgressView.swiftdeps"
+  },
+  "/Users/rob/Scripts/Personal/apple-health-export/HealthExporter/Views/SettingsView.swift": {
+    "dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/SettingsView.d",
+    "object": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/SettingsView.swift.o",
+    "swiftmodule": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/SettingsView~partial.swiftmodule",
+    "swift-dependencies": "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/SettingsView.swiftdeps"
+  }
+}

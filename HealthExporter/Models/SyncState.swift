@@ -34,6 +34,10 @@ struct SyncState: Codable {
         }
     }
     
+    mutating func clearExportHistory() {
+        exportHistory.removeAll()
+    }
+    
     mutating func setLastFullExportDate(_ date: Date) {
         self.lastFullExportDate = date
     }
@@ -45,7 +49,7 @@ struct SyncState: Codable {
 }
 
 struct ExportRecord: Codable, Identifiable {
-    let id = UUID()
+    var id = UUID()
     let date: Date
     let format: ExportFormat
     let recordCount: Int

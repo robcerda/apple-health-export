@@ -91,7 +91,7 @@ struct ProgressView: View {
                     .foregroundColor(.secondary)
             }
             
-            ProgressView(value: exportService.exportProgress.progressPercentage)
+            SwiftUI.ProgressView(value: exportService.exportProgress.progressPercentage, total: 1.0)
                 .progressViewStyle(LinearProgressViewStyle())
                 .scaleEffect(y: 2)
         }

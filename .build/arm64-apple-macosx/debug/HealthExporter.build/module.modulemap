@@ -1,0 +1,4 @@
+module HealthExporter {
+    header "/Users/rob/Scripts/Personal/apple-health-export/.build/arm64-apple-macosx/debug/HealthExporter.build/HealthExporter-Swift.h"
+    requires objc
+}
