@@ -1,5 +1,6 @@
 import SwiftUI
 import HealthKit
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @Binding var configuration: ExportConfiguration
@@ -9,6 +10,7 @@ struct SettingsView: View {
     @State private var startDate = Calendar.current.date(byAdding: .year, value: -1, to: Date()) ?? Date()
     @State private var endDate = Date()
     @State private var syncState = SyncState.load()
+    @State private var showingDocumentPicker = false
     
     var body: some View {
         NavigationView {
@@ -43,6 +45,9 @@ struct SettingsView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showingDocumentPicker) {
+            DocumentPickerView(onFolderSelected: handleDestinationSelected)
         }
     }
     
@@ -239,9 +244,46 @@ struct SettingsView: View {
                     Toggle("Encrypt Auto Exports", isOn: $configuration.autoExportSettings.encryptionEnabled)
                 }
                 
+                // Destination Selection
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Export Destination")
+                        .font(.subheadline)
+                    
+                    Button {
+                        print("🔄 Choose Destination button tapped")
+                        showingDocumentPicker = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "folder")
+                                .foregroundColor(.blue)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(configuration.autoExportSettings.destinationDisplayName ?? "Choose Destination")
+                                    .foregroundColor(.primary)
+                                
+                                Text(configuration.autoExportSettings.destinationDisplayName != nil ? 
+                                     "Tap to change destination" : 
+                                     "Select where auto-exports will be saved")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Image(systemName: "chevron.right")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                        }
+                        .padding(.vertical, 8)
+                        .background(Color(UIColor.tertiarySystemBackground))
+                        .cornerRadius(8)
+                    }
+                }
+                
                 // Summary
                 Label {
-                    Text("Will export \(configuration.autoExportSettings.dataRange.rawValue.lowercased()) \(configuration.autoExportSettings.frequency.nextRunDescription.lowercased()) at \(configuration.autoExportSettings.timeOfDay.displayString) in \(configuration.autoExportSettings.format.rawValue) format")
+                    let destination = configuration.autoExportSettings.destinationDisplayName ?? "app's Documents folder"
+                    Text("Will export \(configuration.autoExportSettings.dataRange.rawValue.lowercased()) \(configuration.autoExportSettings.frequency.nextRunDescription.lowercased()) at \(configuration.autoExportSettings.timeOfDay.displayString) to \(destination) in \(configuration.autoExportSettings.format.rawValue) format")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -378,6 +420,69 @@ struct SettingsView: View {
         if let data = try? JSONEncoder().encode(configuration) {
             UserDefaults.standard.set(data, forKey: "ExportConfiguration")
         }
+    }
+    
+    
+    private func handleDestinationSelected(_ url: URL) {
+        do {
+            let fileService = FileService()
+            let bookmark = try fileService.createDestinationBookmark(for: url)
+            
+            configuration.autoExportSettings.destinationBookmark = bookmark
+            configuration.autoExportSettings.destinationDisplayName = url.lastPathComponent
+            
+            print("📁 Auto-export destination selected: \(url.lastPathComponent)")
+        } catch {
+            print("❌ Failed to create bookmark for destination: \(error)")
+        }
+    }
+    
+}
+
+struct DocumentPickerView: UIViewControllerRepresentable {
+    let onFolderSelected: (URL) -> Void
+    @Environment(\.dismiss) private var dismiss
+    
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.folder])
+        picker.allowsMultipleSelection = false
+        picker.shouldShowFileExtensions = true
+        picker.delegate = context.coordinator
+        return picker
+    }
+    
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {
+        // No updates needed
+    }
+    
+    func makeCoordinator() -> DocumentPickerCoordinator {
+        DocumentPickerCoordinator(
+            onFolderSelected: onFolderSelected,
+            onDismiss: { dismiss() }
+        )
+    }
+}
+
+
+class DocumentPickerCoordinator: NSObject, UIDocumentPickerDelegate {
+    let onFolderSelected: (URL) -> Void
+    let onDismiss: () -> Void
+    
+    init(onFolderSelected: @escaping (URL) -> Void, onDismiss: @escaping () -> Void) {
+        self.onFolderSelected = onFolderSelected
+        self.onDismiss = onDismiss
+    }
+    
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+        guard let url = urls.first else { return }
+        print("📁 Folder selected: \(url.lastPathComponent)")
+        onFolderSelected(url)
+        onDismiss()
+    }
+    
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+        print("📁 Folder picker cancelled")
+        onDismiss()
     }
 }
 

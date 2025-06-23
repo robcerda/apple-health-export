@@ -44,13 +44,17 @@ struct AutoExportSettings: Codable {
     var dataRange: AutoExportDataRange // What time period to export
     var format: ExportFormat // Can be different from manual export
     var encryptionEnabled: Bool // Independent encryption setting
+    var destinationBookmark: Data? // Security-scoped bookmark for chosen destination
+    var destinationDisplayName: String? // User-friendly name for the destination
     
     static let `default` = AutoExportSettings(
         frequency: .weekly,
         timeOfDay: TimeOfDay(hour: 2, minute: 0), // 2:00 AM
         dataRange: .sinceLast,
         format: .json,
-        encryptionEnabled: false
+        encryptionEnabled: false,
+        destinationBookmark: nil,
+        destinationDisplayName: nil
     )
 }
 

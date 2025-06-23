@@ -82,10 +82,7 @@ struct ContentView: View {
                 }
             }
             .alert("Export Complete!", isPresented: $showingSuccessAlert) {
-                Button("Open Files App") {
-                    openFilesApp()
-                }
-                Button("Share File") {
+                Button("Share") {
                     shareExportedFile()
                 }
                 Button("OK") { }
@@ -94,9 +91,9 @@ struct ContentView: View {
                     let fileService = FileService()
                     let fileSize = fileService.getFileSize(for: fileURL)
                     let formattedSize = ByteCountFormatter.string(fromByteCount: fileSize, countStyle: .file)
-                    Text("✅ Export completed successfully!\n\n📁 File: \(fileURL.lastPathComponent)\n📊 Size: \(formattedSize)\n\n📱 Saved to Files app under \"On My iPad > HealthExporter\"")
+                    Text("Export completed successfully!\n\nFile: \(fileURL.lastPathComponent)\nSize: \(formattedSize)")
                 } else {
-                    Text("✅ Export completed successfully!")
+                    Text("Export completed successfully!")
                 }
             }
         }
@@ -486,12 +483,6 @@ struct ContentView: View {
         return fileService.listExportFiles().first
     }
     
-    private func openFilesApp() {
-        // Use the Files app URL scheme to open directly to the app's documents
-        if let url = URL(string: "shareddocuments://") {
-            UIApplication.shared.open(url)
-        }
-    }
     
     private func shareExportedFile() {
         guard let fileURL = exportedFileURL else { return }

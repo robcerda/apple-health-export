@@ -461,6 +461,60 @@ class FileService {
         }
     }
     
+    // MARK: - Auto Export Destination Management
+    
+    // Write file to user's chosen auto-export destination
+    func writeFileToAutoExportDestination(data: Data, filename: String, bookmark: Data) async throws -> URL {
+        var isStale = false
+        
+        // Resolve the security-scoped bookmark
+        guard let destinationURL = try? URL(resolvingBookmarkData: bookmark, 
+                                          options: [],
+                                          relativeTo: nil,
+                                          bookmarkDataIsStale: &isStale) else {
+            throw FileServiceError.invalidDestination
+        }
+        
+        // Start accessing the security-scoped resource
+        guard destinationURL.startAccessingSecurityScopedResource() else {
+            throw FileServiceError.accessDenied
+        }
+        
+        defer {
+            destinationURL.stopAccessingSecurityScopedResource()
+        }
+        
+        // Create the file URL in the destination
+        let fileURL = destinationURL.appendingPathComponent(filename)
+        
+        // Write the file
+        try data.write(to: fileURL, options: [.atomic])
+        
+        return fileURL
+    }
+    
+    // Create security-scoped bookmark for a selected destination
+    func createDestinationBookmark(for url: URL) throws -> Data {
+        return try url.bookmarkData(options: [.suitableForBookmarkFile],
+                                   includingResourceValuesForKeys: nil,
+                                   relativeTo: nil)
+    }
+    
+    // Validate that a destination is still accessible
+    func validateDestination(bookmark: Data) -> Bool {
+        var isStale = false
+        
+        guard let url = try? URL(resolvingBookmarkData: bookmark,
+                                options: [],
+                                relativeTo: nil,
+                                bookmarkDataIsStale: &isStale),
+              !isStale else {
+            return false
+        }
+        
+        return url.startAccessingSecurityScopedResource()
+    }
+    
     func listExportFiles() -> [URL] {
         do {
             let contents = try fileManager.contentsOfDirectory(
@@ -484,12 +538,21 @@ class FileService {
 }
 
 enum FileServiceError: LocalizedError {
+    case invalidDestination
+    case accessDenied
+    case destinationUnavailable
     case databaseCreationFailed
     case databaseInsertFailed
     case fileWriteError
     
     var errorDescription: String? {
         switch self {
+        case .invalidDestination:
+            return "The selected destination is no longer valid"
+        case .accessDenied:
+            return "Access denied to the selected destination"
+        case .destinationUnavailable:
+            return "The selected destination is not available"
         case .databaseCreationFailed:
             return "Failed to create SQLite database"
         case .databaseInsertFailed:
