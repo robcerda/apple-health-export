@@ -27,23 +27,29 @@ struct ContentView: View {
     }
     
     var body: some View {
-        NavigationView {
-            VStack(spacing: 30) {
-                headerSection
-                
-                authorizationSection
-                
-                if healthKitService.isAuthorized {
-                    exportSection
+        NavigationStack {
+            ScrollView {
+                LazyVStack(spacing: 24) {
+                    headerSection
+                        .padding(.top, 20)
                     
-                    permissionsDebugSection
+                    authorizationSection
                     
-                    configurationSection
+                    if healthKitService.isAuthorized {
+                        exportSection
+                        
+                        HStack(alignment: .top, spacing: 16) {
+                            permissionsDebugSection
+                                .frame(maxWidth: .infinity)
+                            
+                            configurationSection
+                                .frame(maxWidth: .infinity)
+                        }
+                    }
                 }
-                
-                Spacer()
+                .padding(.horizontal)
+                .padding(.bottom, 30)
             }
-            .padding()
             .navigationTitle("Health Exporter")
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -95,16 +101,16 @@ struct ContentView: View {
                 }
             }
         }
-        .onChange(of: exportService.isExporting) { isExporting in
-            showingProgress = isExporting
+        .onChange(of: exportService.isExporting) {
+            showingProgress = exportService.isExporting
         }
-        .onChange(of: exportService.lastError != nil) { hasError in
-            if hasError {
+        .onChange(of: exportService.lastError != nil) {
+            if exportService.lastError != nil {
                 showingErrorAlert = true
             }
         }
-        .onChange(of: exportService.exportProgress.stage) { stage in
-            if stage == .completed && exportService.lastError == nil {
+        .onChange(of: exportService.exportProgress.stage) {
+            if exportService.exportProgress.stage == .completed && exportService.lastError == nil {
                 // Export completed successfully
                 exportedFileURL = getLatestExportFile()
                 showingSuccessAlert = true
@@ -114,38 +120,44 @@ struct ContentView: View {
             loadConfiguration()
             print("📱 ContentView appeared - HealthKit authorized: \(healthKitService.isAuthorized)")
             
-            // Reset authorization to request the new FOCUSED set of permissions
-            UserDefaults.standard.set(false, forKey: "HasRequestedHealthKitAuth")
-            print("🔄 Reset authorization to request FOCUSED core health data types")
-            
-            // Force recheck authorization status
+            // Check authorization status on app launch
             Task {
                 await MainActor.run {
                     healthKitService.checkAuthorizationStatus()
                 }
             }
         }
-        .onChange(of: healthKitService.isAuthorized) { isAuthorized in
-            print("📱 HealthKit authorization changed to: \(isAuthorized)")
+        .onChange(of: healthKitService.isAuthorized) {
+            print("📱 HealthKit authorization changed to: \(healthKitService.isAuthorized)")
         }
     }
     
     private var headerSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             Image(systemName: "heart.text.square")
-                .font(.system(size: 60))
-                .foregroundColor(.red)
+                .font(.system(size: 80))
+                .foregroundStyle(.red.gradient)
+                .symbolEffect(.pulse.byLayer, options: .speed(0.5).repeating)
             
-            Text("Export Your Health Data")
-                .font(.title2)
-                .fontWeight(.semibold)
-                .multilineTextAlignment(.center)
+            VStack(spacing: 8) {
+                Text("Health Data Exporter")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .multilineTextAlignment(.center)
+                
+                Text("Privacy-focused, open-source health data export")
+                    .font(.headline)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+            }
             
-            Text("Privacy-focused, open-source health data export. No data leaves your device without your explicit action.")
+            Text("Your health data stays on your device. Export to analyze, backup, or share on your terms.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
+                .padding(.horizontal)
         }
+        .padding(.vertical, 20)
     }
     
     private var authorizationSection: some View {
@@ -199,7 +211,7 @@ struct ContentView: View {
     }
     
     private var exportSection: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 20) {
             Button(exportButtonTitle) {
                 if exportService.isExporting {
                     showingProgress = true
@@ -210,7 +222,9 @@ struct ContentView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .font(.headline)
+            .controlSize(.large)
+            .font(.title2)
+            .fontWeight(.semibold)
             
             if exportService.isExporting {
                 VStack(spacing: 8) {

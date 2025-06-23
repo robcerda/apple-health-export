@@ -118,21 +118,21 @@ struct SettingsView: View {
                     .foregroundColor(.secondary)
             }
         }
-        .onChange(of: customDateRange) { enabled in
-            if enabled {
+        .onChange(of: customDateRange) {
+            if customDateRange {
                 configuration.dateRange = ExportConfiguration.DateRange(start: startDate, end: endDate)
             } else {
                 configuration.dateRange = nil
             }
         }
-        .onChange(of: startDate) { date in
+        .onChange(of: startDate) {
             if customDateRange {
-                configuration.dateRange = ExportConfiguration.DateRange(start: date, end: endDate)
+                configuration.dateRange = ExportConfiguration.DateRange(start: startDate, end: endDate)
             }
         }
-        .onChange(of: endDate) { date in
+        .onChange(of: endDate) {
             if customDateRange {
-                configuration.dateRange = ExportConfiguration.DateRange(start: startDate, end: date)
+                configuration.dateRange = ExportConfiguration.DateRange(start: startDate, end: endDate)
             }
         }
     }

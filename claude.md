@@ -11,7 +11,7 @@ Transparency: Open source, auditable, clear about what it does
 
 Technical Constraints
 
-Minimum iOS Version: 16.0 (for latest Swift Concurrency features)
+Minimum iOS Version: 17.0 (for latest HealthKit features and modern UI capabilities)
 Swift Version: 5.9+
 No External Dependencies: Only use Foundation, HealthKit, CryptoKit, SwiftUI
 Memory Management: Stream data to disk, batch operations, never load all data in memory

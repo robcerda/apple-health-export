@@ -148,39 +148,19 @@ struct SupportedHealthDataTypes {
             .environmentalAudioExposureEvent
         ]
         
-        // iOS 14.0+ types
-        if #available(iOS 14.0, *) {
-            let ios14Quantity: [HKQuantityTypeIdentifier] = [
-                .walkingSpeed, .walkingStepLength, .walkingAsymmetryPercentage, .walkingDoubleSupportPercentage,
-                .stairAscentSpeed, .stairDescentSpeed, .sixMinuteWalkTestDistance
-            ]
-            allTypes += ios14Quantity.compactMap { HKQuantityType.quantityType(forIdentifier: $0) }
-            
-            let ios14Category: [HKCategoryTypeIdentifier] = [.headphoneAudioExposureEvent]
-            allTypes += ios14Category.compactMap { HKCategoryType.categoryType(forIdentifier: $0) }
-        }
+        // iOS 14.0+ types (all available since we require iOS 17.0+)
+        let ios14AndLaterQuantity: [HKQuantityTypeIdentifier] = [
+            .walkingSpeed, .walkingStepLength, .walkingAsymmetryPercentage, .walkingDoubleSupportPercentage,
+            .stairAscentSpeed, .stairDescentSpeed, .sixMinuteWalkTestDistance, .appleWalkingSteadiness,
+            .appleMoveTime
+        ]
+        allTypes += ios14AndLaterQuantity.compactMap { HKQuantityType.quantityType(forIdentifier: $0) }
         
-        // iOS 14.3+ reproductive health
-        if #available(iOS 14.3, *) {
-            let ios143Category: [HKCategoryTypeIdentifier] = [.contraceptive, .pregnancy, .lactation]
-            allTypes += ios143Category.compactMap { HKCategoryType.categoryType(forIdentifier: $0) }
-        }
-        
-        // iOS 14.5+ Apple Move Time
-        if #available(iOS 14.5, *) {
-            if let appleMoveTime = HKQuantityType.quantityType(forIdentifier: .appleMoveTime) {
-                allTypes.append(appleMoveTime)
-            }
-        }
-        
-        // iOS 15.0+ walking steadiness
-        if #available(iOS 15.0, *) {
-            let ios15Quantity: [HKQuantityTypeIdentifier] = [.appleWalkingSteadiness]
-            allTypes += ios15Quantity.compactMap { HKQuantityType.quantityType(forIdentifier: $0) }
-            
-            let ios15Category: [HKCategoryTypeIdentifier] = [.pregnancyTestResult, .progesteroneTestResult, .appleWalkingSteadinessEvent]
-            allTypes += ios15Category.compactMap { HKCategoryType.categoryType(forIdentifier: $0) }
-        }
+        let ios14AndLaterCategory: [HKCategoryTypeIdentifier] = [
+            .headphoneAudioExposureEvent, .contraceptive, .pregnancy, .lactation,
+            .pregnancyTestResult, .progesteroneTestResult, .appleWalkingSteadinessEvent
+        ]
+        allTypes += ios14AndLaterCategory.compactMap { HKCategoryType.categoryType(forIdentifier: $0) }
         
         // Convert main types to actual types
         allTypes += quantityIdentifiers.compactMap { HKQuantityType.quantityType(forIdentifier: $0) }
@@ -189,10 +169,8 @@ struct SupportedHealthDataTypes {
         // Add workout types (very important)
         allTypes.append(HKWorkoutType.workoutType())
         
-        // Add electrocardiogram if available
-        if #available(iOS 14.0, *) {
-            allTypes.append(HKElectrocardiogramType.electrocardiogramType())
-        }
+        // Add electrocardiogram (available since iOS 14.0, we require 17.0+)
+        allTypes.append(HKElectrocardiogramType.electrocardiogramType())
         
         // Add clinical data (working separately)
         let clinicalIdentifiers: [HKClinicalTypeIdentifier] = [
