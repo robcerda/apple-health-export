@@ -1,7 +1,7 @@
 # Health Exporter
 
-[![iOS Build](https://github.com/robcerda/apple-health-export/actions/workflows/ios-build.yml/badge.svg)](https://github.com/yourusername/apple-health-export/actions/workflows/ios-build.yml)
-[![App Store](https://github.com/robcerda/apple-health-export/actions/workflows/app-store-deploy.yml/badge.svg)](https://github.com/yourusername/apple-health-export/actions/workflows/app-store-deploy.yml)
+[![iOS Build](https://github.com/robcerda/apple-health-export/actions/workflows/ios-build.yml/badge.svg)](https://github.com/robcerda/apple-health-export/actions/workflows/ios-build.yml)
+[![App Store](https://github.com/robcerda/apple-health-export/actions/workflows/app-store-deploy.yml/badge.svg)](https://github.com/robcerda/apple-health-export/actions/workflows/app-store-deploy.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![iOS](https://img.shields.io/badge/iOS-17.0+-blue.svg)](https://developer.apple.com/ios/)
 [![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org/)
@@ -114,7 +114,7 @@ HealthExporter/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/health-exporter.git
+git clone https://github.com/robcerda/health-exporter.git
 cd health-exporter
 ```
 
