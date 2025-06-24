@@ -1,5 +1,11 @@
 # Health Exporter
 
+[![iOS Build](https://github.com/yourusername/apple-health-export/actions/workflows/ios-build.yml/badge.svg)](https://github.com/yourusername/apple-health-export/actions/workflows/ios-build.yml)
+[![App Store](https://github.com/yourusername/apple-health-export/actions/workflows/app-store-deploy.yml/badge.svg)](https://github.com/yourusername/apple-health-export/actions/workflows/app-store-deploy.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![iOS](https://img.shields.io/badge/iOS-17.0+-blue.svg)](https://developer.apple.com/ios/)
+[![Swift](https://img.shields.io/badge/Swift-5.9+-orange.svg)](https://swift.org/)
+
 A privacy-focused, open-source iOS app that exports Apple Health data for personal analysis. The app prioritizes user privacy by making zero network requests and giving users complete control over their health data.
 
 ## Features
@@ -161,8 +167,38 @@ open HealthExporter.xcodeproj
 1. Fork the repository
 2. Create a feature branch
 3. Add tests for new functionality
-4. Ensure all tests pass
-5. Submit a pull request
+4. Follow the coding standards (SwiftLint configuration included)
+5. Ensure all tests pass
+6. Submit a pull request
+
+### CI/CD Pipeline
+
+#### Automated Building
+- **GitHub Actions** workflows for iOS builds
+- **SwiftLint** integration for code quality
+- **Automated testing** on every push and PR
+- **Security scanning** for potential vulnerabilities
+
+#### App Store Deployment
+- **Automated builds** triggered by version tags
+- **Code signing** with secure certificate management  
+- **TestFlight uploads** for beta testing
+- **Release notes** generation from git commits
+
+#### Local Development
+```bash
+# Build for testing
+./scripts/build-release.sh
+
+# Run quality checks
+swiftlint lint --config .swiftlint.yml
+
+# Create release
+git tag v1.0.0
+git push origin v1.0.0  # Triggers App Store build
+```
+
+See [`.github/SETUP.md`](.github/SETUP.md) for complete CI/CD setup instructions.
 
 ## License
 

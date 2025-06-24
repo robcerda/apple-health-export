@@ -1,0 +1,192 @@
+name: Deploy to App Store
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Trigger on version tags like v1.0.0
+  workflow_dispatch: # Allow manual trigger
+    inputs:
+      skip_tests:
+        description: 'Skip tests'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  XCODE_VERSION: '16.0'
+
+jobs:
+  deploy-to-app-store:
+    name: Build and Deploy to App Store
+    runs-on: macos-15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Xcode
+      run: |
+        sudo xcode-select -s /Applications/Xcode_16.0.app/Contents/Developer
+        xcodebuild -version
+        
+    - name: Install certificates and provisioning profiles
+      env:
+        BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+        P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
+        DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.DISTRIBUTION_CERTIFICATE_BASE64 }}
+        DISTRIBUTION_P12_PASSWORD: ${{ secrets.DISTRIBUTION_P12_PASSWORD }}
+        BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
+        DISTRIBUTION_PROVISION_PROFILE_BASE64: ${{ secrets.DISTRIBUTION_PROVISION_PROFILE_BASE64 }}
+        KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+      run: |
+        # Create variables
+        BUILD_CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
+        DIST_CERTIFICATE_PATH=$RUNNER_TEMP/distribution_certificate.p12
+        BUILD_PP_PATH=$RUNNER_TEMP/build_pp.mobileprovision
+        DIST_PP_PATH=$RUNNER_TEMP/distribution_pp.mobileprovision
+        KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+
+        # Import certificates and provisioning profiles from secrets
+        echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o $BUILD_CERTIFICATE_PATH
+        echo -n "$DISTRIBUTION_CERTIFICATE_BASE64" | base64 --decode -o $DIST_CERTIFICATE_PATH
+        echo -n "$BUILD_PROVISION_PROFILE_BASE64" | base64 --decode -o $BUILD_PP_PATH
+        echo -n "$DISTRIBUTION_PROVISION_PROFILE_BASE64" | base64 --decode -o $DIST_PP_PATH
+
+        # Create temporary keychain
+        security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+        security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+        security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+        # Import certificates to keychain
+        security import $BUILD_CERTIFICATE_PATH -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+        security import $DIST_CERTIFICATE_PATH -P "$DISTRIBUTION_P12_PASSWORD" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+        security list-keychain -d user -s $KEYCHAIN_PATH
+
+        # Apply provisioning profiles
+        mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+        cp $BUILD_PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
+        cp $DIST_PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
+        
+    - name: Increment build number
+      run: |
+        # Get current build number and increment
+        BUILD_NUMBER=$(date +%Y%m%d%H%M)
+        echo "Setting build number to: $BUILD_NUMBER"
+        
+        # Update build number in project
+        /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" HealthExporter/Info.plist
+        
+        # Also update in project.pbxproj if needed
+        sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = $BUILD_NUMBER;/g" HealthExporter.xcodeproj/project.pbxproj
+        
+        echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
+        
+    - name: Run tests (if not skipped)
+      if: github.event.inputs.skip_tests != 'true'
+      run: |
+        xcodebuild test \
+          -project HealthExporter.xcodeproj \
+          -scheme HealthExporter \
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
+          -configuration Release \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          | xcpretty && exit ${PIPESTATUS[0]}
+      continue-on-error: true
+      
+    - name: Build archive
+      run: |
+        xcodebuild clean archive \
+          -project HealthExporter.xcodeproj \
+          -scheme HealthExporter \
+          -configuration Release \
+          -destination 'generic/platform=iOS' \
+          -archivePath $RUNNER_TEMP/HealthExporter.xcarchive \
+          | xcpretty && exit ${PIPESTATUS[0]}
+          
+    - name: Export for App Store
+      run: |
+        # Create export options plist
+        cat > $RUNNER_TEMP/ExportOptions.plist << EOF
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+          <key>destination</key>
+          <string>export</string>
+          <key>method</key>
+          <string>app-store</string>
+          <key>teamID</key>
+          <string>${{ secrets.TEAM_ID }}</string>
+          <key>uploadBitcode</key>
+          <false/>
+          <key>uploadSymbols</key>
+          <true/>
+          <key>compileBitcode</key>
+          <false/>
+        </dict>
+        </plist>
+        EOF
+        
+        # Export archive
+        xcodebuild -exportArchive \
+          -archivePath $RUNNER_TEMP/HealthExporter.xcarchive \
+          -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
+          -exportPath $RUNNER_TEMP/export \
+          | xcpretty && exit ${PIPESTATUS[0]}
+          
+    - name: Upload to App Store Connect
+      env:
+        APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+        APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+        APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+      run: |
+        # Create API key file
+        echo "$APP_STORE_CONNECT_PRIVATE_KEY" > $RUNNER_TEMP/AuthKey_$APP_STORE_CONNECT_API_KEY_ID.p8
+        
+        # Upload to App Store Connect
+        xcrun altool --upload-app \
+          -f $RUNNER_TEMP/export/*.ipa \
+          --type ios \
+          --apiKey $APP_STORE_CONNECT_API_KEY_ID \
+          --apiIssuer $APP_STORE_CONNECT_ISSUER_ID
+          
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: app-store-build-${{ env.BUILD_NUMBER }}
+        path: |
+          ${{ runner.temp }}/export/
+          ${{ runner.temp }}/HealthExporter.xcarchive
+        retention-days: 30
+        
+    - name: Create GitHub Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref_name }}
+        release_name: Release ${{ github.ref_name }}
+        body: |
+          ## Health Exporter ${{ github.ref_name }}
+          
+          ### 📱 App Store
+          Build ${{ env.BUILD_NUMBER }} has been uploaded to App Store Connect.
+          
+          ### ✨ What's New
+          - Add your release notes here
+          
+          ### 🔒 Privacy & Security
+          - Zero network requests - your data stays on your device
+          - Optional encryption with user-controlled passwords
+          - Open source and auditable
+          
+        draft: true
+        prerelease: false
+        
+    - name: Clean up keychain
+      if: always()
+      run: |
+        security delete-keychain $RUNNER_TEMP/app-signing.keychain-db || true

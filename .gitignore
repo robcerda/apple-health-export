@@ -47,6 +47,7 @@ playground.xcworkspace
 # .swiftpm
 
 .build/
+.build/**
 
 # CocoaPods
 #
@@ -117,3 +118,89 @@ iOSInjectionProject/
 
 # OS generated files
 Thumbs.db
+
+# CI/CD and Build Artifacts
+# Local build outputs
+build/
+export/
+*.xcarchive
+*.xcarchive/
+DerivedData/
+
+# Code Signing (CRITICAL - Never commit these!)
+*.p12
+*.mobileprovision
+*.provisionprofile
+*.cer
+*.p8
+AuthKey_*.p8
+*.certSigningRequest
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+secrets/
+*.pem
+*.key
+private_keys/
+
+# GitHub Actions artifacts (if downloaded locally)
+.github/artifacts/
+
+# App Store metadata (keep the structure, ignore sensitive data)
+AppStore/private/
+AppStore/*.p8
+AppStore/AuthKey_*
+
+# SwiftLint artifacts
+.swiftlint-cache/
+
+# Xcode Cloud
+*.xctestplan
+
+# TestFlight and App Store Connect
+*.app
+*.ipa.zip
+ExportOptions.plist
+
+# Simulator specific
+*.app.dSYM/
+
+# Crash logs
+crash_*.log
+*.crash
+
+# Memory profiling
+*.memgraph
+
+# Network traces
+*.trace
+
+# Performance tests
+*.trace
+*.dtps
+
+# Local configuration overrides
+config.local.json
+settings.local.json
+
+# Health data samples (for testing - never commit real data!)
+test_data/real_samples/
+sample_exports/
+health_data_*.json
+health_data_*.db
+
+# Documentation artifacts
+docs/build/
+*.pdf.tmp
+
+# Temporary Xcode files
+*.xcuserstate
+*.xcworkspace/xcshareddata/swiftpm/Package.resolved.backup
+
+# IDE plugin files
+.swiftpm/xcode/
+
+# macOS extended attributes
+._*
