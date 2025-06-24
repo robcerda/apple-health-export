@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.healthexporter.auto-export</string>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -26,12 +30,12 @@
 	<string>public.app-category.healthcare-fitness</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>NSHealthClinicalHealthRecordsShareUsageDescription</key>
+	<string>This app can export your clinical health records (medical records, lab results, immunizations) along with other health data for comprehensive personal health analysis. Your medical data never leaves your device unless you explicitly share it.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>This app exports your health data to files on your device for personal analysis. Your data never leaves your device unless you explicitly share it.</string>
 	<key>NSHealthUpdateUsageDescription</key>
 	<string>This app may need to update health data during the export process to maintain data integrity and sync states.</string>
-	<key>NSHealthClinicalHealthRecordsShareUsageDescription</key>
-	<string>This app can export your clinical health records (medical records, lab results, immunizations) along with other health data for comprehensive personal health analysis. Your medical data never leaves your device unless you explicitly share it.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -49,6 +53,11 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>background-app-refresh</string>
+		<string>background-processing</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UIRequiredDeviceCapabilities</key>
@@ -68,15 +77,6 @@
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
-	</array>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>background-app-refresh</string>
-		<string>background-processing</string>
-	</array>
-	<key>BGTaskSchedulerPermittedIdentifiers</key>
-	<array>
-		<string>com.healthexporter.auto-export</string>
 	</array>
 </dict>
 </plist>

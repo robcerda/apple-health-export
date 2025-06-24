@@ -44,34 +44,15 @@ struct HealthExporterApp: App {
             task.setTaskCompleted(success: false)
         }
         
-        // Run real export in background
-        Task {
-            do {
-                guard let configuration = self.loadAutoExportConfiguration(),
-                      configuration.autoExportEnabled else {
-                    print("❌ Auto-export configuration not found or disabled in background")
-                    task.setTaskCompleted(success: false)
-                    return
-                }
-                
-                // Note: Background execution of HealthKit queries may be limited
-                // This is why we have the foreground fallback
-                print("🚀 Attempting real auto-export in background...")
-                
-                // For now, just record the attempt and complete the task
-                // Real implementation would need careful HealthKit background handling
-                await MainActor.run {
-                    self.setLastAutoExportTime(Date())
-                    print("✅ Auto-export background task completed (placeholder)")
-                    task.setTaskCompleted(success: true)
-                    self.scheduleNextAutoExport()
-                }
-                
-            } catch {
-                print("❌ Background auto-export failed: \(error)")
-                task.setTaskCompleted(success: false)
-            }
-        }
+        // HealthKit background execution is severely limited by iOS
+        // iOS restricts background HealthKit queries for privacy
+        // This is why we primarily rely on foreground fallback
+        print("⚠️ Background HealthKit access limited - marking for foreground fallback")
+        
+        // Just mark that we attempted and reschedule
+        // Real export will happen via foreground fallback
+        task.setTaskCompleted(success: true)
+        scheduleNextAutoExport()
     }
     
     private func scheduleNextAutoExport() {
@@ -158,8 +139,10 @@ struct HealthExporterApp: App {
         
         // Check if we're past due for an export
         if shouldRunExportNow(settings: settings) {
+            let scheduledTime = getLastScheduledExportTime(settings: settings, relativeTo: Date())
             print("🚀 Auto-export is overdue, running now...")
-            runAutoExportInForeground()
+            print("⏰ Should have run at: \(scheduledTime)")
+            runAutoExportInForeground(scheduledTime: scheduledTime)
         }
     }
     
@@ -247,7 +230,7 @@ struct HealthExporterApp: App {
         UserDefaults.standard.set(date, forKey: "LastAutoExportTime")
     }
     
-    private func runAutoExportInForeground() {
+    private func runAutoExportInForeground(scheduledTime: Date) {
         guard let configuration = loadAutoExportConfiguration(),
               configuration.autoExportEnabled else {
             print("❌ Auto-export configuration not found or disabled")
@@ -270,7 +253,7 @@ struct HealthExporterApp: App {
                 }
                 
                 // Create auto-export configuration
-                let autoExportConfig = createAutoExportConfiguration(from: configuration)
+                let autoExportConfig = createAutoExportConfiguration(from: configuration, scheduledTime: scheduledTime)
                 
                 print("🚀 Auto-export starting with format: \(autoExportConfig.exportFormat.rawValue)")
                 
@@ -329,7 +312,7 @@ struct HealthExporterApp: App {
         }
     }
     
-    private func createAutoExportConfiguration(from config: ExportConfiguration) -> ExportConfiguration {
+    private func createAutoExportConfiguration(from config: ExportConfiguration, scheduledTime: Date) -> ExportConfiguration {
         var autoConfig = config
         
         // Override with auto-export specific settings
@@ -337,28 +320,33 @@ struct HealthExporterApp: App {
         autoConfig.encryptionEnabled = config.autoExportSettings.encryptionEnabled
         
         // Set date range based on auto-export data range setting
+        // IMPORTANT: Use scheduledTime as the end date, not current time
         switch config.autoExportSettings.dataRange {
         case .sinceLast:
             // Use incremental since last export
             autoConfig.dateRange = nil // This will trigger incremental export
             
         case .last24Hours:
-            let endDate = Date()
+            let endDate = scheduledTime // Use scheduled time, not current time
             let startDate = Calendar.current.date(byAdding: .day, value: -1, to: endDate) ?? endDate
             autoConfig.dateRange = ExportConfiguration.DateRange(start: startDate, end: endDate)
+            print("📅 Export range: \(startDate) to \(endDate) (24 hours ending at scheduled time)")
             
         case .lastWeek:
-            let endDate = Date()
+            let endDate = scheduledTime // Use scheduled time, not current time
             let startDate = Calendar.current.date(byAdding: .day, value: -7, to: endDate) ?? endDate
             autoConfig.dateRange = ExportConfiguration.DateRange(start: startDate, end: endDate)
+            print("📅 Export range: \(startDate) to \(endDate) (7 days ending at scheduled time)")
             
         case .lastMonth:
-            let endDate = Date()
+            let endDate = scheduledTime // Use scheduled time, not current time
             let startDate = Calendar.current.date(byAdding: .day, value: -30, to: endDate) ?? endDate
             autoConfig.dateRange = ExportConfiguration.DateRange(start: startDate, end: endDate)
+            print("📅 Export range: \(startDate) to \(endDate) (30 days ending at scheduled time)")
             
         case .allData:
             autoConfig.dateRange = nil
+            print("📅 Export range: All data (no date restriction)")
         }
         
         return autoConfig

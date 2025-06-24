@@ -5,7 +5,7 @@ import BackgroundTasks
 class AutoExportScheduler {
     static let backgroundTaskIdentifier = "com.healthexporter.auto-export"
     
-    static func setupBackgroundTasks() {
+    public static func setupBackgroundTasks() {
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: backgroundTaskIdentifier,
             using: DispatchQueue.global(qos: .background)
@@ -16,7 +16,7 @@ class AutoExportScheduler {
         print("📅 Background task registration completed")
     }
     
-    static func scheduleNextExport() {
+    public static func scheduleNextExport() {
         guard let configuration = loadConfiguration(),
               configuration.autoExportEnabled else {
             print("📅 Auto-export is disabled, not scheduling")
@@ -50,13 +50,14 @@ class AutoExportScheduler {
             task.setTaskCompleted(success: false)
         }
         
-        // For now, just complete the task
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            print("✅ Auto-export background task completed")
-            task.setTaskCompleted(success: true)
-        }
+        // HealthKit background execution is severely limited by iOS
+        // iOS restricts background HealthKit queries for privacy
+        // This is why we primarily rely on foreground fallback
+        print("⚠️ Background HealthKit access limited - marking for foreground fallback")
         
-        // Schedule the next export
+        // Just mark that we attempted and reschedule
+        // Real export will happen via foreground fallback
+        task.setTaskCompleted(success: true)
         scheduleNextExport()
     }
     

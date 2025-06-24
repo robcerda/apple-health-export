@@ -535,6 +535,10 @@ struct SettingsView: View {
     
     
     private func handleDestinationSelected(_ url: URL) {
+        print("📁 Attempting to set destination: \(url.path)")
+        print("📁 URL exists: \(url.hasDirectoryPath)")
+        print("📁 URL security-scoped: \(url.isFileURL)")
+        
         do {
             let fileService = FileService()
             let bookmark = try fileService.createDestinationBookmark(for: url)
@@ -542,9 +546,19 @@ struct SettingsView: View {
             configuration.autoExportSettings.destinationBookmark = bookmark
             configuration.autoExportSettings.destinationDisplayName = url.lastPathComponent
             
-            print("📁 Auto-export destination selected: \(url.lastPathComponent)")
+            print("✅ Auto-export destination selected: \(url.lastPathComponent)")
+            print("✅ Bookmark created successfully")
+            
+            // Save configuration immediately
+            saveConfiguration()
         } catch {
             print("❌ Failed to create bookmark for destination: \(error)")
+            print("❌ URL: \(url)")
+            print("❌ Error details: \(error.localizedDescription)")
+            
+            // Reset destination on failure
+            configuration.autoExportSettings.destinationBookmark = nil
+            configuration.autoExportSettings.destinationDisplayName = nil
         }
     }
     

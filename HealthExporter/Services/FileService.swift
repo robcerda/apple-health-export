@@ -495,6 +495,16 @@ class FileService {
     
     // Create security-scoped bookmark for a selected destination
     func createDestinationBookmark(for url: URL) throws -> Data {
+        // Start accessing the security-scoped resource before creating bookmark
+        guard url.startAccessingSecurityScopedResource() else {
+            throw FileServiceError.accessDenied
+        }
+        
+        defer {
+            url.stopAccessingSecurityScopedResource()
+        }
+        
+        // Create the bookmark while we have access
         return try url.bookmarkData(options: [.suitableForBookmarkFile],
                                    includingResourceValuesForKeys: nil,
                                    relativeTo: nil)
