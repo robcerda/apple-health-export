@@ -213,6 +213,22 @@ jobs:
         APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
       run: |
         echo "🚀 Uploading to App Store Connect..."
+        echo "DEBUG: IPA_FILE environment variable: '$IPA_FILE'"
+        echo "DEBUG: Checking export directory contents:"
+        ls -la "$RUNNER_TEMP/export/" || echo "Export directory not found"
+        
+        # Find IPA file if not set
+        if [ -z "$IPA_FILE" ]; then
+          echo "IPA_FILE not set, searching for IPA file..."
+          IPA_FILE=$(find "$RUNNER_TEMP/export" -name "*.ipa" | head -1)
+          echo "Found IPA file: $IPA_FILE"
+        fi
+        
+        if [ -z "$IPA_FILE" ] || [ ! -f "$IPA_FILE" ]; then
+          echo "❌ No valid IPA file found!"
+          exit 1
+        fi
+        
         echo "Using IPA file: $IPA_FILE"
         
         # Create API key file in the right location
