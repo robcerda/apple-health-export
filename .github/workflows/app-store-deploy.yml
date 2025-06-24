@@ -113,6 +113,8 @@ jobs:
       continue-on-error: true
       
     - name: Build archive
+      env:
+        TEAM_ID: ${{ secrets.TEAM_ID }}
       run: |
         echo "🏗️ Building archive..."
         echo "Archive path: $RUNNER_TEMP/HealthExporter.xcarchive"
@@ -123,6 +125,11 @@ jobs:
           -configuration Release \
           -destination 'generic/platform=iOS' \
           -archivePath $RUNNER_TEMP/HealthExporter.xcarchive \
+          -allowProvisioningUpdates \
+          CODE_SIGN_IDENTITY="Apple Distribution" \
+          CODE_SIGN_STYLE="Manual" \
+          PROVISIONING_PROFILE_SPECIFIER="Health Exporter App Store" \
+          DEVELOPMENT_TEAM="$TEAM_ID" \
           | xcpretty && exit ${PIPESTATUS[0]}
           
         # Verify archive was created
@@ -148,9 +155,18 @@ jobs:
           <key>destination</key>
           <string>export</string>
           <key>method</key>
-          <string>app-store</string>
+          <string>app-store-connect</string>
           <key>teamID</key>
           <string>${{ secrets.TEAM_ID }}</string>
+          <key>signingStyle</key>
+          <string>manual</string>
+          <key>signingCertificate</key>
+          <string>Apple Distribution</string>
+          <key>provisioningProfiles</key>
+          <dict>
+            <key>com.amnesic.dev.healthexporter</key>
+            <string>Health Exporter App Store</string>
+          </dict>
           <key>uploadBitcode</key>
           <false/>
           <key>uploadSymbols</key>
