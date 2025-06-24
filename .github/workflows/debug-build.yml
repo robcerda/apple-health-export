@@ -139,6 +139,8 @@ jobs:
         echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
         
     - name: Build archive
+      env:
+        TEAM_ID: ${{ secrets.TEAM_ID }}
       run: |
         echo "🏗️ Building archive..."
         echo "Archive path: $RUNNER_TEMP/HealthExporter.xcarchive"
@@ -154,7 +156,11 @@ jobs:
           -configuration Release \
           -destination 'generic/platform=iOS' \
           -archivePath $RUNNER_TEMP/HealthExporter.xcarchive \
-          -allowProvisioningUpdates
+          -allowProvisioningUpdates \
+          CODE_SIGN_IDENTITY="Apple Distribution" \
+          CODE_SIGN_STYLE=Manual \
+          PROVISIONING_PROFILE_SPECIFIER="Health Exporter App Store" \
+          DEVELOPMENT_TEAM="$TEAM_ID"
           
         # Verify archive was created
         if [ -d "$RUNNER_TEMP/HealthExporter.xcarchive" ]; then
