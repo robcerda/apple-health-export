@@ -257,57 +257,74 @@ struct HealthExporterApp: App {
         print("🚀 Starting real auto-export in foreground...")
         
         Task { @MainActor in
-            // Create export service
-            let fileService = FileService()
-            let encryptionService = EncryptionService()
-            let healthKitService = HealthKitService()
-            let exportService = ExportService(
-                healthKitService: healthKitService,
-                fileService: fileService,
-                encryptionService: encryptionService
-            )
-            
-            // Create auto-export configuration
-            let autoExportConfig = createAutoExportConfiguration(from: configuration)
-            
-            // Start the actual export
-            exportService.startExport(
-                configuration: autoExportConfig,
-                password: configuration.autoExportSettings.encryptionEnabled ? nil : nil
-            )
-            
-            // Monitor for completion
-            let observer = NotificationCenter.default.addObserver(
-                forName: NSNotification.Name("exportCompleted"),
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                print("✅ Auto-export completed successfully")
-                self?.setLastAutoExportTime(Date())
-                self?.scheduleNextAutoExport()
+            do {
+                // Create services for auto-export
+                let fileService = FileService()
+                let encryptionService = EncryptionService()
+                let healthKitService = HealthKitService()
                 
-                // Handle destination if configured
-                if let bookmark = configuration.autoExportSettings.destinationBookmark {
-                    Task {
-                        await self?.moveLatestExportToDestination(bookmark: bookmark, fileService: fileService)
+                // Ensure HealthKit is authorized
+                guard healthKitService.isAuthorized else {
+                    print("❌ HealthKit not authorized for auto-export")
+                    return
+                }
+                
+                // Create auto-export configuration
+                let autoExportConfig = createAutoExportConfiguration(from: configuration)
+                
+                print("🚀 Auto-export starting with format: \(autoExportConfig.exportFormat.rawValue)")
+                
+                // Create export service and run export
+                let exportService = ExportService(
+                    healthKitService: healthKitService,
+                    fileService: fileService,
+                    encryptionService: encryptionService
+                )
+                
+                // Wait for export to complete by monitoring the service state
+                var isCompleted = false
+                var attempts = 0
+                let maxAttempts = 300 // 5 minutes max wait time
+                
+                exportService.startExport(
+                    configuration: autoExportConfig,
+                    password: configuration.autoExportSettings.encryptionEnabled ? nil : nil
+                )
+                
+                // Poll for completion instead of using notifications
+                while !isCompleted && attempts < maxAttempts {
+                    try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                    attempts += 1
+                    
+                    if exportService.exportProgress.stage == .completed {
+                        print("✅ Auto-export completed successfully")
+                        setLastAutoExportTime(Date())
+                        
+                        // Handle destination if configured
+                        if let bookmark = configuration.autoExportSettings.destinationBookmark {
+                            await moveLatestExportToDestination(bookmark: bookmark, fileService: fileService)
+                        }
+                        
+                        isCompleted = true
+                    } else if exportService.lastError != nil {
+                        print("❌ Auto-export failed: \(exportService.lastError?.localizedDescription ?? "Unknown error")")
+                        isCompleted = true
+                    } else if exportService.exportProgress.stage == .failed {
+                        print("❌ Auto-export failed with stage: failed")
+                        isCompleted = true
                     }
                 }
-            }
-            
-            let errorObserver = NotificationCenter.default.addObserver(
-                forName: NSNotification.Name("exportFailed"),
-                object: nil,
-                queue: .main
-            ) { [weak self] _ in
-                print("❌ Auto-export failed")
-                // Don't update timestamp on failure, so it will retry
-                self?.scheduleNextAutoExport()
-            }
-            
-            // Clean up observers after 10 minutes
-            DispatchQueue.main.asyncAfter(deadline: .now() + 600) {
-                NotificationCenter.default.removeObserver(observer)
-                NotificationCenter.default.removeObserver(errorObserver)
+                
+                if !isCompleted {
+                    print("⏰ Auto-export timed out after 5 minutes")
+                }
+                
+                // Always reschedule next export
+                scheduleNextAutoExport()
+                
+            } catch {
+                print("❌ Auto-export error: \(error)")
+                scheduleNextAutoExport()
             }
         }
     }
