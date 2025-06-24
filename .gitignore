@@ -203,4 +203,4 @@ docs/build/
 .swiftpm/xcode/
 
 # macOS extended attributes
-._*
+._*/.build/

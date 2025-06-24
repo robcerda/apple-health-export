@@ -21,8 +21,8 @@
       "medical",
       "records"
     ],
-    "supportUrl": "https://github.com/yourusername/health-exporter/issues",
-    "privacyPolicyUrl": "https://github.com/yourusername/health-exporter/blob/main/PRIVACY.md",
+    "supportUrl": "https://github.com/robcerda/apple-health-export/issues",
+    "privacyPolicyUrl": "https://github.com/robcerda/apple-health-export/blob/main/PRIVACY.md",
     "version": "1.0",
     "buildNumber": "1"
   },
