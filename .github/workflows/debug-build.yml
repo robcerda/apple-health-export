@@ -73,10 +73,22 @@ jobs:
         DISTRIBUTION_PROVISION_PROFILE_BASE64: ${{ secrets.DISTRIBUTION_PROVISION_PROFILE_BASE64 }}
         KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
       run: |
+        echo "🔍 Checking certificate secrets..."
+        echo "BUILD_CERTIFICATE_BASE64 length: ${#BUILD_CERTIFICATE_BASE64}"
+        echo "DISTRIBUTION_CERTIFICATE_BASE64 length: ${#DISTRIBUTION_CERTIFICATE_BASE64}"
+        echo "BUILD_PROVISION_PROFILE_BASE64 length: ${#BUILD_PROVISION_PROFILE_BASE64}"
+        echo "DISTRIBUTION_PROVISION_PROFILE_BASE64 length: ${#DISTRIBUTION_PROVISION_PROFILE_BASE64}"
+        
         if [ -z "$BUILD_CERTIFICATE_BASE64" ]; then
-          echo "⚠️ No certificates provided - skipping code signing setup"
-          echo "To fix: Add required secrets to repository settings"
-          exit 0
+          echo "❌ BUILD_CERTIFICATE_BASE64 is empty or missing"
+          echo "🔧 Check: GitHub → Settings → Secrets and variables → Actions"
+          echo "🔧 Ensure secret name is exactly: BUILD_CERTIFICATE_BASE64"
+          exit 1
+        fi
+        
+        if [ -z "$DISTRIBUTION_CERTIFICATE_BASE64" ]; then
+          echo "❌ DISTRIBUTION_CERTIFICATE_BASE64 is empty or missing"
+          exit 1
         fi
         
         echo "🔐 Setting up code signing..."
