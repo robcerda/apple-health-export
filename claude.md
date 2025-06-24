@@ -1,7 +1,14 @@
 HealthKit Data Exporter Development Guide
 
-## Current Status: ✅ WORKING APP WITH AUTO-EXPORT
-This is a **fully functional**, privacy-focused iOS app that successfully exports comprehensive Apple Health data. The app has been tested and verified to work with real health data (83.8 MB exports confirmed). **Now includes reliable auto-export functionality with user-selected destinations.**
+## Current Status: ✅ WORKING APP WITH PARTIAL AUTO-EXPORT
+This is a **fully functional**, privacy-focused iOS app that successfully exports comprehensive Apple Health data. The app has been tested and verified to work with real health data (83.8 MB exports confirmed). 
+
+**Auto-Export Status: 🔄 IN DEVELOPMENT**
+- Auto-export UI and configuration: ✅ Complete
+- Background task registration: ✅ Complete  
+- User destination selection: ✅ Complete
+- **Scheduled execution: ❌ Still not working reliably**
+- Foreground fallback system: ✅ Implemented but needs testing
 
 ## Project Context
 You are building a privacy-focused, open-source iOS app that exports Apple Health data for personal analysis. The app makes zero network requests and gives users complete control over their health data.
@@ -190,6 +197,11 @@ struct AutoExportSettings: Codable {
 - Automatic rescheduling after each export
 - No user notifications - completely silent operation
 
+**⚠️ KNOWN ISSUES:**
+- **Scheduled auto-exports not executing**: Despite proper background task registration and scheduling, exports are not running at scheduled times
+- **Possible causes**: iOS background task restrictions, HealthKit background limitations, implementation bugs
+- **Workaround needed**: Manual trigger or alternative scheduling approach required
+
 **Testing & Verification:**
 - Check Settings for "Last auto-export: X ago" status
 - Verify exports appear in "Previous Exports" section
@@ -234,6 +246,8 @@ Forgetting iPad support - HealthKit limited but available on iPad
 - Assuming background tasks run at exact scheduled times
 - Not providing fallback when background execution fails
 - Using notifications for auto-export status (annoying to users)
+- **Creating fake exports**: Updating timestamps without real export work (critical bug found and fixed)
+- **iOS background task reality**: Even properly registered background tasks may never execute due to system restrictions
 
 Performance Targets
 
@@ -278,6 +292,14 @@ Verify permissions in Settings > Privacy > Health
 Look at device logs in Console.app
 Test with smaller date ranges first
 Ensure device has sufficient free space
+
+**Auto-Export Debugging:**
+- Check Background App Refresh is enabled in iOS Settings
+- Verify background task identifier matches Info.plist exactly
+- Test foreground fallback by opening app after scheduled time
+- Monitor console logs for scheduling and execution messages
+- Consider that iOS background tasks are unreliable by design
+- Alternative: Implement local notification reminders for manual triggers
 
 Remember
 This app handles extremely sensitive personal health data. Every decision should prioritize user privacy and data security. When in doubt, choose the more private/secure option.
