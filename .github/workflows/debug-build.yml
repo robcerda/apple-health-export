@@ -1,23 +1,20 @@
-name: Deploy to App Store
+name: Debug Build
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'  # Trigger on version tags like v1.0.0
-  workflow_dispatch: # Allow manual trigger
+  workflow_dispatch: # Manual trigger only
     inputs:
-      skip_tests:
-        description: 'Skip tests'
+      skip_upload:
+        description: 'Skip App Store upload (test build only)'
         required: false
-        default: false
+        default: true
         type: boolean
 
 env:
   XCODE_VERSION: '16.0'
 
 jobs:
-  deploy-to-app-store:
-    name: Build and Deploy to App Store
+  debug-build:
+    name: Debug Build Process
     runs-on: macos-15
     
     steps:
@@ -34,13 +31,39 @@ jobs:
         echo "🔍 Environment Debug Info:"
         echo "Runner temp: $RUNNER_TEMP"
         echo "GitHub workspace: $GITHUB_WORKSPACE"
-        echo "Available schemes:"
+        echo "Current directory: $(pwd)"
+        echo ""
+        echo "📁 Project structure:"
+        ls -la
+        echo ""
+        echo "🏗️ Xcode project info:"
         xcodebuild -list -project HealthExporter.xcodeproj
         echo ""
-        echo "Security identities:"
-        security find-identity -v -p codesigning || echo "No code signing identities found yet"
+        echo "🔐 Available secrets (masked):"
+        echo "BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 != '' && '✅ Set' || '❌ Missing' }}"
+        echo "DISTRIBUTION_CERTIFICATE_BASE64: ${{ secrets.DISTRIBUTION_CERTIFICATE_BASE64 != '' && '✅ Set' || '❌ Missing' }}"
+        echo "BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 != '' && '✅ Set' || '❌ Missing' }}"
+        echo "DISTRIBUTION_PROVISION_PROFILE_BASE64: ${{ secrets.DISTRIBUTION_PROVISION_PROFILE_BASE64 != '' && '✅ Set' || '❌ Missing' }}"
+        echo "TEAM_ID: ${{ secrets.TEAM_ID != '' && '✅ Set' || '❌ Missing' }}"
+        echo "APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID != '' && '✅ Set' || '❌ Missing' }}"
+        echo "APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID != '' && '✅ Set' || '❌ Missing' }}"
+        echo "APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY != '' && '✅ Set' || '❌ Missing' }}"
         
-    - name: Install certificates and provisioning profiles
+    - name: Test simulator build (no code signing)
+      run: |
+        echo "🧪 Testing simulator build first..."
+        xcodebuild clean build \
+          -project HealthExporter.xcodeproj \
+          -scheme HealthExporter \
+          -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
+          -configuration Release \
+          CODE_SIGN_IDENTITY="" \
+          CODE_SIGNING_REQUIRED=NO \
+          | head -50
+          
+        echo "✅ Simulator build test completed"
+        
+    - name: Install certificates (if available)
       env:
         BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
         P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
@@ -50,6 +73,14 @@ jobs:
         DISTRIBUTION_PROVISION_PROFILE_BASE64: ${{ secrets.DISTRIBUTION_PROVISION_PROFILE_BASE64 }}
         KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
       run: |
+        if [ -z "$BUILD_CERTIFICATE_BASE64" ]; then
+          echo "⚠️ No certificates provided - skipping code signing setup"
+          echo "To fix: Add required secrets to repository settings"
+          exit 0
+        fi
+        
+        echo "🔐 Setting up code signing..."
+        
         # Create variables
         BUILD_CERTIFICATE_PATH=$RUNNER_TEMP/build_certificate.p12
         DIST_CERTIFICATE_PATH=$RUNNER_TEMP/distribution_certificate.p12
@@ -79,7 +110,7 @@ jobs:
         cp $DIST_PP_PATH ~/Library/MobileDevice/Provisioning\ Profiles
         
         # Verify installation
-        echo "✅ Code signing setup complete:"
+        echo "✅ Code signing identities:"
         security find-identity -v -p codesigning
         echo ""
         echo "📋 Provisioning profiles:"
@@ -87,57 +118,53 @@ jobs:
         
     - name: Increment build number
       run: |
-        # Get current build number and increment
         BUILD_NUMBER=$(date +%Y%m%d%H%M)
-        echo "Setting build number to: $BUILD_NUMBER"
+        echo "📈 Setting build number to: $BUILD_NUMBER"
         
-        # Update build number in project
         /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $BUILD_NUMBER" HealthExporter/Info.plist
-        
-        # Also update in project.pbxproj if needed
         sed -i '' "s/CURRENT_PROJECT_VERSION = [0-9]*;/CURRENT_PROJECT_VERSION = $BUILD_NUMBER;/g" HealthExporter.xcodeproj/project.pbxproj
         
         echo "BUILD_NUMBER=$BUILD_NUMBER" >> $GITHUB_ENV
         
-    - name: Run tests (if not skipped)
-      if: github.event.inputs.skip_tests != 'true'
-      run: |
-        xcodebuild test \
-          -project HealthExporter.xcodeproj \
-          -scheme HealthExporter \
-          -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.5' \
-          -configuration Release \
-          CODE_SIGN_IDENTITY="" \
-          CODE_SIGNING_REQUIRED=NO \
-          | xcpretty && exit ${PIPESTATUS[0]}
-      continue-on-error: true
-      
     - name: Build archive
       run: |
         echo "🏗️ Building archive..."
         echo "Archive path: $RUNNER_TEMP/HealthExporter.xcarchive"
         
+        # Show current code signing settings
+        echo "📋 Build settings:"
+        xcodebuild -project HealthExporter.xcodeproj -scheme HealthExporter -configuration Release -showBuildSettings | grep -E "(CODE_SIGN|TEAM|BUNDLE)"
+        
+        # Build archive
         xcodebuild clean archive \
           -project HealthExporter.xcodeproj \
           -scheme HealthExporter \
           -configuration Release \
           -destination 'generic/platform=iOS' \
           -archivePath $RUNNER_TEMP/HealthExporter.xcarchive \
-          | xcpretty && exit ${PIPESTATUS[0]}
+          -allowProvisioningUpdates
           
         # Verify archive was created
         if [ -d "$RUNNER_TEMP/HealthExporter.xcarchive" ]; then
           echo "✅ Archive created successfully"
+          echo "📁 Archive contents:"
           ls -la "$RUNNER_TEMP/HealthExporter.xcarchive"
+          ls -la "$RUNNER_TEMP/HealthExporter.xcarchive/Products/"
         else
           echo "❌ Archive not found!"
           exit 1
         fi
-          
-    - name: Export for App Store
+        
+    - name: Test export (dry run)
+      env:
+        TEAM_ID: ${{ secrets.TEAM_ID }}
       run: |
-        echo "📦 Exporting for App Store..."
-        echo "Export path: $RUNNER_TEMP/export"
+        if [ -z "$TEAM_ID" ]; then
+          echo "⚠️ No TEAM_ID provided - skipping export test"
+          exit 0
+        fi
+        
+        echo "📦 Testing export process..."
         
         # Create export options plist
         cat > $RUNNER_TEMP/ExportOptions.plist << EOF
@@ -150,7 +177,7 @@ jobs:
           <key>method</key>
           <string>app-store</string>
           <key>teamID</key>
-          <string>${{ secrets.TEAM_ID }}</string>
+          <string>$TEAM_ID</string>
           <key>uploadBitcode</key>
           <false/>
           <key>uploadSymbols</key>
@@ -161,105 +188,80 @@ jobs:
         </plist>
         EOF
         
-        echo "📄 Export options plist:"
+        echo "📄 Export options:"
         cat $RUNNER_TEMP/ExportOptions.plist
         
         # Export archive
         xcodebuild -exportArchive \
           -archivePath $RUNNER_TEMP/HealthExporter.xcarchive \
           -exportOptionsPlist $RUNNER_TEMP/ExportOptions.plist \
-          -exportPath $RUNNER_TEMP/export \
-          | xcpretty && exit ${PIPESTATUS[0]}
+          -exportPath $RUNNER_TEMP/export
           
-        # Verify export was created
+        # Check results
         if [ -d "$RUNNER_TEMP/export" ]; then
-          echo "✅ Export created successfully"
+          echo "✅ Export successful"
+          echo "📁 Export contents:"
           ls -la "$RUNNER_TEMP/export/"
           
-          # Find the .ipa file
           IPA_FILE=$(find "$RUNNER_TEMP/export" -name "*.ipa" | head -1)
           if [ -n "$IPA_FILE" ]; then
             echo "✅ Found IPA file: $IPA_FILE"
-            echo "IPA_FILE=$IPA_FILE" >> $GITHUB_ENV
+            echo "📏 IPA file size: $(du -h "$IPA_FILE")"
+            echo "EXPORT_SUCCESS=true" >> $GITHUB_ENV
           else
-            echo "❌ No IPA file found in export!"
-            exit 1
+            echo "❌ No IPA file found!"
           fi
         else
-          echo "❌ Export directory not found!"
-          exit 1
+          echo "❌ Export failed!"
         fi
-          
-    - name: Upload to App Store Connect
+        
+    - name: Test App Store Connect upload (if not skipped)
+      if: env.EXPORT_SUCCESS == 'true' && github.event.inputs.skip_upload != 'true'
       env:
         APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
         APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
         APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
       run: |
-        echo "🚀 Uploading to App Store Connect..."
-        echo "Using IPA file: $IPA_FILE"
+        echo "🚀 Testing App Store Connect upload..."
+        
+        if [ -z "$APP_STORE_CONNECT_API_KEY_ID" ]; then
+          echo "⚠️ App Store Connect API credentials not provided"
+          exit 0
+        fi
+        
+        IPA_FILE=$(find "$RUNNER_TEMP/export" -name "*.ipa" | head -1)
+        echo "📱 Uploading: $IPA_FILE"
         
         # Create API key file
         echo "$APP_STORE_CONNECT_PRIVATE_KEY" > $RUNNER_TEMP/AuthKey_$APP_STORE_CONNECT_API_KEY_ID.p8
         chmod 600 $RUNNER_TEMP/AuthKey_$APP_STORE_CONNECT_API_KEY_ID.p8
         
-        # Upload to App Store Connect using modern approach
-        # First try with xcrun altool (still works as of 2024)
+        # Upload to App Store Connect
         xcrun altool --upload-app \
           -f "$IPA_FILE" \
           --type ios \
           --apiKey $APP_STORE_CONNECT_API_KEY_ID \
           --apiIssuer $APP_STORE_CONNECT_ISSUER_ID \
-          --verbose || {
+          --verbose
           
-          # Fallback: Use App Store Connect API directly
-          echo "⚠️ altool failed, trying direct API upload..."
-          
-          # Alternative upload method using App Store Connect API
-          xcrun xcbeautify --version || echo "xcbeautify not available"
-          
-          # For now, we'll rely on altool as it's still supported
-          echo "❌ Upload failed - check certificates and Team ID"
-          exit 1
-        }
-          
-        echo "✅ Upload to App Store Connect completed"
-          
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: app-store-build-${{ env.BUILD_NUMBER }}
-        path: |
-          ${{ runner.temp }}/export/
-          ${{ runner.temp }}/HealthExporter.xcarchive
-        retention-days: 30
-        if-no-files-found: warn
+        echo "✅ Upload completed successfully!"
         
-    - name: Create GitHub Release
-      if: startsWith(github.ref, 'refs/tags/')
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref_name }}
-        release_name: Release ${{ github.ref_name }}
-        body: |
-          ## Health Exporter ${{ github.ref_name }}
-          
-          ### 📱 App Store
-          Build ${{ env.BUILD_NUMBER }} has been uploaded to App Store Connect.
-          
-          ### ✨ What's New
-          - Add your release notes here
-          
-          ### 🔒 Privacy & Security
-          - Zero network requests - your data stays on your device
-          - Optional encryption with user-controlled passwords
-          - Open source and auditable
-          
-        draft: true
-        prerelease: false
+    - name: Summary
+      if: always()
+      run: |
+        echo ""
+        echo "📋 Build Summary:"
+        echo "==============="
+        echo "Build Number: $BUILD_NUMBER"
+        echo "Archive: $( [ -d "$RUNNER_TEMP/HealthExporter.xcarchive" ] && echo "✅ Created" || echo "❌ Failed" )"
+        echo "Export: $( [ "$EXPORT_SUCCESS" == "true" ] && echo "✅ Successful" || echo "❌ Failed" )"
+        echo "Upload: $( [ "${{ github.event.inputs.skip_upload }}" == "true" ] && echo "⏭️ Skipped" || echo "🚀 Attempted" )"
+        echo ""
+        echo "🔧 Next steps:"
+        echo "1. If archive failed: Check code signing certificates"
+        echo "2. If export failed: Check Team ID and provisioning profiles"  
+        echo "3. If upload failed: Check App Store Connect API credentials"
+        echo "4. All working? Use the main app-store-deploy.yml workflow"
         
     - name: Clean up keychain
       if: always()
