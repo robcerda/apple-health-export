@@ -1,7 +1,7 @@
 HealthKit Data Exporter Development Guide
 
-## Current Status: ✅ WORKING APP
-This is a **fully functional**, privacy-focused iOS app that successfully exports comprehensive Apple Health data. The app has been tested and verified to work with real health data (83.8 MB exports confirmed).
+## Current Status: ✅ WORKING APP WITH AUTO-EXPORT
+This is a **fully functional**, privacy-focused iOS app that successfully exports comprehensive Apple Health data. The app has been tested and verified to work with real health data (83.8 MB exports confirmed). **Now includes reliable auto-export functionality with user-selected destinations.**
 
 ## Project Context
 You are building a privacy-focused, open-source iOS app that exports Apple Health data for personal analysis. The app makes zero network requests and gives users complete control over their health data.
@@ -118,11 +118,91 @@ Update UI maximum once per second
 Show current operation ("Exporting heart rate data...")
 Accurate time estimates based on processed vs remaining
 
+## Auto-Export System Implementation
+
+**Architecture Overview:**
+The app implements a hybrid auto-export system that ensures reliable scheduled exports regardless of iOS background task limitations.
+
+**Key Components:**
+- Background task registration with `BGTaskScheduler`
+- Foreground fallback system for missed exports
+- User-configurable destinations with security-scoped bookmarks
+- Silent operation without notifications
+
+**Background Task Setup:**
+```swift
+// Info.plist configuration:
+<key>UIBackgroundModes</key>
+<array>
+    <string>background-app-refresh</string>
+    <string>background-processing</string>
+</array>
+<key>BGTaskSchedulerPermittedIdentifiers</key>
+<array>
+    <string>com.healthexporter.auto-export</string>
+</array>
+
+// Register background task in app initialization
+BGTaskScheduler.shared.register(
+    forTaskWithIdentifier: "com.healthexporter.auto-export",
+    using: DispatchQueue.global(qos: .background)
+) { task in
+    handleAutoExportBackgroundTask(task: task as! BGProcessingTask)
+}
+```
+
+**Hybrid Execution Strategy:**
+1. **Primary Path**: Background task attempts to run at scheduled time
+2. **Fallback Path**: Foreground check when app becomes active
+3. **Overdue Detection**: Smart logic to determine if exports were missed
+4. **Silent Recovery**: Catches up on missed exports automatically
+
+**Destination Management:**
+```swift
+// User selects destination folder via document picker
+// Create security-scoped bookmark for persistent access
+let bookmark = try url.bookmarkData(options: [.suitableForBookmarkFile])
+
+// Write exports to user's chosen destination
+func writeFileToAutoExportDestination(data: Data, filename: String, bookmark: Data) async throws -> URL {
+    // Resolve bookmark and access security-scoped resource
+    // Write file to chosen destination (iCloud, Google Drive, etc.)
+}
+```
+
+**Configuration Structure:**
+```swift
+struct AutoExportSettings: Codable {
+    var frequency: AutoExportFrequency      // Daily, Weekly, Monthly
+    var timeOfDay: TimeOfDay               // Hour and minute
+    var dataRange: AutoExportDataRange     // What data to export
+    var format: ExportFormat               // JSON or SQLite
+    var encryptionEnabled: Bool            // Independent encryption
+    var destinationBookmark: Data?         // Security-scoped bookmark
+    var destinationDisplayName: String?    // User-friendly name
+}
+```
+
+**Reliability Features:**
+- Works without maintaining Xcode connection
+- Multiple execution opportunities (background + foreground)
+- Overdue detection based on schedule vs. last export time
+- Automatic rescheduling after each export
+- No user notifications - completely silent operation
+
+**Testing & Verification:**
+- Check Settings for "Last auto-export: X ago" status
+- Verify exports appear in "Previous Exports" section
+- Confirm files are saved to chosen destination
+- Monitor console logs for scheduling confirmation
+
 Background Task Guidelines
-swift// Register tasks in Info.plist
-// Request generous time (up to 30 seconds)
-// Save state before task expires
-// Can resume in next launch
+```swift
+// Register tasks in Info.plist with BGTaskSchedulerPermittedIdentifiers
+// Request background processing time (iOS may grant 1-30 seconds)
+// Save state before task expires and continue in next launch
+// Implement foreground fallback for reliability
+```
 Export Format Standards
 JSON Structure
 
@@ -146,6 +226,14 @@ Blocking main thread - all HealthKit queries should be async
 Not handling duplicates - HealthKit often returns duplicate samples
 Assuming data exists - check for nil/empty results
 Forgetting iPad support - HealthKit limited but available on iPad
+
+**Auto-Export Specific Pitfalls:**
+- Relying solely on iOS background tasks - use hybrid approach
+- Not handling security-scoped bookmark staleness
+- Forgetting to reschedule after each export
+- Assuming background tasks run at exact scheduled times
+- Not providing fallback when background execution fails
+- Using notifications for auto-export status (annoying to users)
 
 Performance Targets
 
@@ -172,6 +260,16 @@ Code Review Checklist
  Encryption keys properly derived and not stored
  Progress accurately reported to user
  Export can be cancelled cleanly
+
+**Auto-Export Specific Checklist:**
+ Background task identifier matches Info.plist
+ Security-scoped bookmarks properly created and resolved
+ Overdue detection logic handles edge cases (day changes, etc.)
+ Auto-exports appear in export history alongside manual exports
+ Settings UI shows meaningful status (last export time)
+ No compilation warnings about unused DateComponents parameters
+ Foreground fallback triggers when app becomes active
+ Auto-scheduling happens automatically on configuration changes
 
 When You're Stuck
 

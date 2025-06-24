@@ -145,6 +145,9 @@ class ExportService: ObservableObject {
             
             await updateProgress(stage: .completed, message: "Export completed successfully!")
             
+            // Notify auto-export service
+            NotificationCenter.default.post(name: NSNotification.Name("exportCompleted"), object: nil)
+            
         } catch {
             print("❌ Export failed with error: \(error)")
             print("❌ Error type: \(type(of: error))")
@@ -172,6 +175,9 @@ class ExportService: ObservableObject {
             syncState.save()
             
             await updateProgress(stage: .failed, message: "Export failed: \(error.localizedDescription)")
+            
+            // Notify auto-export service
+            NotificationCenter.default.post(name: NSNotification.Name("exportFailed"), object: nil)
         }
         
         await MainActor.run {

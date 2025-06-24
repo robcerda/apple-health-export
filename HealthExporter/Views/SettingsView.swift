@@ -1,6 +1,7 @@
 import SwiftUI
 import HealthKit
 import UniformTypeIdentifiers
+import BackgroundTasks
 
 struct SettingsView: View {
     @Binding var configuration: ExportConfiguration
@@ -157,6 +158,12 @@ struct SettingsView: View {
     private var autoExportSection: some View {
         Section("Automatic Export") {
             Toggle("Enable Auto Export", isOn: $configuration.autoExportEnabled)
+                .onChange(of: configuration.autoExportEnabled) {
+                    // Auto-schedule when toggle changes
+                    if configuration.autoExportEnabled {
+                        scheduleAutoExport()
+                    }
+                }
             
             if configuration.autoExportEnabled {
                 // Frequency Selection
@@ -291,6 +298,40 @@ struct SettingsView: View {
                     Image(systemName: "clock.arrow.circlepath")
                         .foregroundColor(.blue)
                 }
+                
+                // Auto-export status
+                if configuration.autoExportEnabled {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label {
+                            Text("Auto-export is enabled and scheduled")
+                                .font(.caption)
+                                .foregroundColor(.green)
+                        } icon: {
+                            Image(systemName: "clock.badge.checkmark")
+                                .foregroundColor(.green)
+                        }
+                        
+                        // Show last auto-export time if available
+                        if let lastAutoExport = UserDefaults.standard.object(forKey: "LastAutoExportTime") as? Date {
+                            Text("Last auto-export: \(lastAutoExport.relativeString)")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        } else {
+                            Text("No auto-exports yet - will run when due")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                } else {
+                    Label {
+                        Text("Enable auto-export above to schedule automatic exports")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    } icon: {
+                        Image(systemName: "clock.badge.xmark")
+                            .foregroundColor(.orange)
+                    }
+                }
             }
         }
     }
@@ -419,6 +460,76 @@ struct SettingsView: View {
     private func saveConfiguration() {
         if let data = try? JSONEncoder().encode(configuration) {
             UserDefaults.standard.set(data, forKey: "ExportConfiguration")
+            
+            // Automatically schedule auto-export if enabled
+            if configuration.autoExportEnabled {
+                scheduleAutoExport()
+            }
+        }
+    }
+    
+    private func scheduleAutoExport() {
+        guard configuration.autoExportEnabled else {
+            print("📅 Auto-export is disabled, not scheduling")
+            return
+        }
+        
+        let settings = configuration.autoExportSettings
+        guard let nextRunDate = calculateNextRunDate(for: settings) else {
+            print("❌ Could not calculate next run date")
+            return
+        }
+        
+        let request = BGProcessingTaskRequest(identifier: "com.healthexporter.auto-export")
+        request.requiresNetworkConnectivity = false
+        request.requiresExternalPower = false
+        request.earliestBeginDate = nextRunDate
+        
+        do {
+            try BGTaskScheduler.shared.submit(request)
+            print("📅 Scheduled next auto-export for: \(nextRunDate)")
+        } catch {
+            print("❌ Failed to schedule auto-export: \(error)")
+        }
+    }
+    
+    private func calculateNextRunDate(for settings: AutoExportSettings) -> Date? {
+        let calendar = Calendar.current
+        let now = Date()
+        
+        let todayComponents = calendar.dateComponents([.year, .month, .day], from: now)
+        var targetComponents = todayComponents
+        targetComponents.hour = settings.timeOfDay.hour
+        targetComponents.minute = settings.timeOfDay.minute
+        targetComponents.second = 0
+        
+        guard let todayTarget = calendar.date(from: targetComponents) else {
+            return nil
+        }
+        
+        switch settings.frequency {
+        case .daily:
+            if todayTarget > now {
+                return todayTarget
+            } else {
+                return calendar.date(byAdding: .day, value: 1, to: todayTarget)
+            }
+            
+        case .weekly:
+            let nextSunday = calendar.nextDate(
+                after: now,
+                matching: DateComponents(hour: settings.timeOfDay.hour, minute: settings.timeOfDay.minute, weekday: 1),
+                matchingPolicy: .nextTime
+            )
+            return nextSunday
+            
+        case .monthly:
+            let nextMonth = calendar.nextDate(
+                after: now,
+                matching: DateComponents(day: 1, hour: settings.timeOfDay.hour, minute: settings.timeOfDay.minute),
+                matchingPolicy: .nextTime
+            )
+            return nextMonth
         }
     }
     
