@@ -217,12 +217,18 @@ jobs:
         echo "DEBUG: Checking export directory contents:"
         ls -la "$RUNNER_TEMP/export/" || echo "Export directory not found"
         
-        # Debug environment variables
+        # Debug environment variables (GitHub masks sensitive values with ***)
         echo "🔍 Debug Environment Variables:"
         echo "API_KEY_ID: '$APP_STORE_CONNECT_API_KEY_ID'"
         echo "ISSUER_ID: '$APP_STORE_CONNECT_ISSUER_ID'"
         echo "PRIVATE_KEY length: ${#APP_STORE_CONNECT_PRIVATE_KEY} characters"
         echo "PRIVATE_KEY starts with: '$(echo "$APP_STORE_CONNECT_PRIVATE_KEY" | head -c 30)...'"
+        
+        # Verify the values are actually loaded (check lengths)
+        echo "🔍 Value verification:"
+        echo "API_KEY_ID length: ${#APP_STORE_CONNECT_API_KEY_ID} characters (should be 10)"
+        echo "ISSUER_ID length: ${#APP_STORE_CONNECT_ISSUER_ID} characters (should be 36)"
+        echo "PRIVATE_KEY length: ${#APP_STORE_CONNECT_PRIVATE_KEY} characters (should be around 256)"
         
         # Find IPA file if not set
         if [ -z "$IPA_FILE" ]; then
@@ -289,6 +295,22 @@ jobs:
           echo "File size: $(wc -c < ~/.private_keys/$API_KEY_FILENAME) bytes"
           echo "First line: $(head -1 ~/.private_keys/$API_KEY_FILENAME)"
           echo "Last line: $(tail -1 ~/.private_keys/$API_KEY_FILENAME)"
+        fi
+        
+        # Test credentials locally before upload
+        echo "🧪 Testing API credentials locally first..."
+        /Applications/Xcode_16.app/Contents/SharedFrameworks/ContentDeliveryServices.framework/Frameworks/AppStoreService.framework/Support/altool \
+          --list-apps \
+          --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+          --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
+          --verbose
+        
+        LOCAL_TEST_RESULT=$?
+        if [ $LOCAL_TEST_RESULT -eq 0 ]; then
+          echo "✅ Local API credential test passed"
+        else
+          echo "❌ Local API credential test failed with exit code: $LOCAL_TEST_RESULT"
+          echo "This suggests an issue with the API credentials before attempting upload"
         fi
         
         # Upload to App Store Connect using altool
