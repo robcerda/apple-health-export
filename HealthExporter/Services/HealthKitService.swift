@@ -161,6 +161,7 @@ class HealthKitService: ObservableObject {
             var predicate: NSPredicate?
             if let startDate = startDate, let endDate = endDate {
                 predicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: [])
+                print("📱 Query date range: \(startDate) to \(endDate)")
             }
             
             if let anchor = anchor {
@@ -171,11 +172,13 @@ class HealthKitService: ObservableObject {
                     limit: limit
                 ) { query, samples, deletedObjects, newAnchor, error in
                     if let error = error {
+                        print("❌ Anchored query error for \(type.identifier): \(error)")
                         continuation.resume(throwing: error)
                         return
                     }
                     
                     let quantitySamples = samples?.compactMap { $0 as? HKQuantitySample } ?? []
+                    print("📊 Fetched \(quantitySamples.count) samples for \(type.identifier) (anchored)")
                     continuation.resume(returning: (samples: quantitySamples, newAnchor: newAnchor))
                 }
                 
@@ -189,11 +192,19 @@ class HealthKitService: ObservableObject {
                     sortDescriptors: [sortDescriptor]
                 ) { query, samples, error in
                     if let error = error {
+                        print("❌ Sample query error for \(type.identifier): \(error)")
                         continuation.resume(throwing: error)
                         return
                     }
                     
                     let quantitySamples = samples?.compactMap { $0 as? HKQuantitySample } ?? []
+                    print("📊 Fetched \(quantitySamples.count) samples for \(type.identifier)")
+                    
+                    // Log sample date range for debugging
+                    if let first = quantitySamples.first, let last = quantitySamples.last {
+                        print("📅 Sample range: \(first.startDate) to \(last.startDate)")
+                    }
+                    
                     continuation.resume(returning: (samples: quantitySamples, newAnchor: nil))
                 }
                 

@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var showingSuccessAlert = false
     @State private var showingExportDetails = false
     @State private var exportedFileURL: URL?
+    @State private var refreshID = UUID()
     
     init() {
         let fileService = FileService()
@@ -50,6 +51,9 @@ struct ContentView: View {
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 30)
+            }
+            .refreshable {
+                await refreshAllData()
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -126,9 +130,78 @@ struct ContentView: View {
             // Clean up old exports (keep last 10)
             let fileService = FileService()
             fileService.cleanupOldExports()
+            
+            // Force refresh of relative time displays
+            refreshID = UUID()
         }
         .onChange(of: healthKitService.isAuthorized) {
             print("📱 HealthKit authorization changed to: \(healthKitService.isAuthorized)")
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            // Force refresh of relative time displays when app becomes active
+            refreshID = UUID()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            // Force refresh of relative time displays when app becomes fully active
+            refreshID = UUID()
+        }
+    }
+    
+    // MARK: - Pull-to-Refresh
+    
+    @MainActor
+    private func refreshAllData() async {
+        print("🔄 Pull-to-refresh triggered")
+        
+        // Update relative time displays by generating new refresh ID
+        refreshID = UUID()
+        
+        // Check authorization status
+        healthKitService.checkAuthorizationStatus()
+        
+        // Clean up old exports to ensure fresh file list
+        let fileService = FileService()
+        fileService.cleanupOldExports()
+        
+        // Check for pending auto-exports if auto-export is enabled
+        await checkForPendingAutoExports()
+        
+        // Small delay to ensure smooth animation
+        try? await Task.sleep(for: .milliseconds(300))
+        
+        print("✅ Pull-to-refresh completed")
+    }
+    
+    private func checkForPendingAutoExports() async {
+        guard let configData = UserDefaults.standard.data(forKey: "ExportConfiguration"),
+              let config = try? JSONDecoder().decode(ExportConfiguration.self, from: configData),
+              config.autoExportEnabled else {
+            return
+        }
+        
+        print("🔍 Checking for pending auto-exports...")
+        
+        // Check if auto-export is overdue
+        if let lastAutoExport = UserDefaults.standard.object(forKey: "LastAutoExportTime") as? Date {
+            let timeSinceLastExport = Date().timeIntervalSince(lastAutoExport)
+            let daysSinceLastExport = timeSinceLastExport / (24 * 60 * 60)
+            
+            // Check if we're overdue based on frequency
+            let isOverdue: Bool
+            switch config.autoExportSettings.frequency {
+            case .daily:
+                isOverdue = daysSinceLastExport > 1.1 // 10% buffer
+            case .weekly:
+                isOverdue = daysSinceLastExport > 7.7 // 10% buffer
+            case .monthly:
+                isOverdue = daysSinceLastExport > 31.0 // About a month
+            }
+            
+            if isOverdue {
+                print("⏰ Auto-export appears overdue - triggering fallback check")
+                // Note: In a real implementation, this would trigger the auto-export logic
+                // For now, we just log the detection
+            }
         }
     }
     
@@ -336,41 +409,50 @@ struct ContentView: View {
                 .foregroundColor(.blue)
             }
             
-            let fileService = FileService()
-            let exportFiles = fileService.listExportFiles()
+            let unifiedHistory = getUnifiedExportHistory()
             
-            if exportFiles.isEmpty {
+            if unifiedHistory.isEmpty {
                 Text("No exports yet")
                     .font(.caption)
                     .foregroundColor(.secondary)
             } else {
-                ForEach(Array(exportFiles.prefix(2).enumerated()), id: \.offset) { index, fileURL in
+                ForEach(Array(unifiedHistory.prefix(2).enumerated()), id: \.offset) { index, record in
                     HStack {
-                        Image(systemName: "doc.fill")
-                            .foregroundColor(.blue)
+                        Image(systemName: record.success ? "checkmark.circle.fill" : "xmark.circle.fill")
+                            .foregroundColor(record.success ? .green : .red)
                             .font(.caption)
                         
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(fileURL.lastPathComponent)
+                            Text(record.fileName ?? "Unknown File")
                                 .font(.caption)
                                 .lineLimit(1)
                             
-                            if let attributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path),
-                               let fileSize = attributes[.size] as? Int64,
-                               let creationDate = attributes[.creationDate] as? Date {
-                                Text("\(ByteCountFormatter.string(fromByteCount: fileSize, countStyle: .file)) • \(creationDate.relativeString)")
+                            if record.success {
+                                if record.recordCount > 0 {
+                                    Text("\(record.recordCount) records • \(record.formattedFileSize) • \(record.date.relativeString)")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text("\(record.formattedFileSize) • \(record.date.relativeString)")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                            } else {
+                                Text("\(record.errorMessage ?? "Export failed") • \(record.date.relativeString)")
                                     .font(.caption2)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(.red)
                             }
                         }
                         
                         Spacer()
                         
-                        Button("Share") {
-                            shareFile(fileURL)
+                        if record.fileExists, let fileURL = record.fileURL {
+                            Button("Share") {
+                                shareFile(fileURL)
+                            }
+                            .font(.caption)
+                            .foregroundColor(.blue)
                         }
-                        .font(.caption)
-                        .foregroundColor(.blue)
                     }
                     .padding(.vertical, 2)
                 }
@@ -379,6 +461,7 @@ struct ContentView: View {
         .padding()
         .background(Color(UIColor.tertiarySystemBackground))
         .cornerRadius(8)
+        .id(refreshID) // Force refresh when refreshID changes
     }
     
     private var configurationSection: some View {
@@ -400,27 +483,27 @@ struct ContentView: View {
             
             Toggle("Encrypt Export", isOn: $configuration.encryptionEnabled)
             
-            if let syncState = loadSyncState() {
-                exportHistorySection(syncState: syncState)
-            }
+            recentExportsSection
         }
         .padding()
         .background(Color(UIColor.secondarySystemBackground))
         .cornerRadius(12)
     }
     
-    private func exportHistorySection(syncState: SyncState) -> some View {
+    private var recentExportsSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Recent Exports")
                 .font(.subheadline)
                 .fontWeight(.medium)
             
-            if syncState.exportHistory.isEmpty {
+            let unifiedHistory = getUnifiedExportHistory()
+            
+            if unifiedHistory.isEmpty {
                 Text("No exports yet")
                     .font(.caption)
                     .foregroundColor(.secondary)
             } else {
-                ForEach(syncState.exportHistory.prefix(3)) { record in
+                ForEach(unifiedHistory.prefix(3)) { record in
                     HStack {
                         Image(systemName: record.success ? "checkmark.circle.fill" : "xmark.circle.fill")
                             .foregroundColor(record.success ? .green : .red)
@@ -431,9 +514,15 @@ struct ContentView: View {
                                 .font(.caption)
                             
                             if record.success {
-                                Text("\(record.recordCount) records • \(record.formattedFileSize)")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
+                                if record.recordCount > 0 {
+                                    Text("\(record.recordCount) records • \(record.formattedFileSize)")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text(record.formattedFileSize)
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
                             } else {
                                 Text(record.errorMessage ?? "Export failed")
                                     .font(.caption2)
@@ -451,6 +540,7 @@ struct ContentView: View {
                 }
             }
         }
+        .id(refreshID) // Force refresh when refreshID changes
     }
     
     private func startExport() {
@@ -476,6 +566,12 @@ struct ContentView: View {
     
     private func loadSyncState() -> SyncState? {
         return SyncState.load()
+    }
+    
+    private func getUnifiedExportHistory() -> [UnifiedExportRecord] {
+        let syncState = SyncState.load()
+        let fileService = FileService()
+        return syncState.getUnifiedExportHistory(fileService: fileService)
     }
     
     private func getLatestExportFile() -> URL? {

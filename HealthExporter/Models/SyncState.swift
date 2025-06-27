@@ -58,6 +58,8 @@ struct ExportRecord: Codable, Identifiable {
     let success: Bool
     let errorMessage: String?
     let isIncremental: Bool
+    let fileName: String?
+    let filePath: String?
     
     var formattedFileSize: String {
         ByteCountFormatter.string(fromByteCount: fileSize, countStyle: .file)
@@ -69,6 +71,26 @@ struct ExportRecord: Codable, Identifiable {
         formatter.unitsStyle = .abbreviated
         return formatter.string(from: duration) ?? "\(Int(duration))s"
     }
+}
+
+struct UnifiedExportRecord: Identifiable {
+    let id = UUID()
+    let exportRecord: ExportRecord
+    let fileURL: URL?
+    let fileExists: Bool
+    
+    // Convenience properties
+    var date: Date { exportRecord.date }
+    var format: ExportFormat { exportRecord.format }
+    var recordCount: Int { exportRecord.recordCount }
+    var fileSize: Int64 { exportRecord.fileSize }
+    var duration: TimeInterval { exportRecord.duration }
+    var success: Bool { exportRecord.success }
+    var errorMessage: String? { exportRecord.errorMessage }
+    var isIncremental: Bool { exportRecord.isIncremental }
+    var fileName: String? { exportRecord.fileName ?? fileURL?.lastPathComponent }
+    var formattedFileSize: String { exportRecord.formattedFileSize }
+    var formattedDuration: String { exportRecord.formattedDuration }
 }
 
 extension SyncState {
@@ -89,5 +111,73 @@ extension SyncState {
     
     static func clear() {
         UserDefaults.standard.removeObject(forKey: userDefaultsKey)
+    }
+    
+    // Unified export history that combines stored records with file system info
+    func getUnifiedExportHistory(fileService: FileService) -> [UnifiedExportRecord] {
+        var unifiedRecords: [UnifiedExportRecord] = []
+        let exportFiles = fileService.listExportFiles()
+        
+        // Start with stored export records
+        for record in exportHistory {
+            var matchingFile: URL?
+            
+            // Try to find matching file by looking for files created around the same time
+            if let fileName = record.fileName {
+                matchingFile = exportFiles.first { $0.lastPathComponent == fileName }
+            } else {
+                // Fallback: match by creation date (within 1 minute of export)
+                matchingFile = exportFiles.first { fileURL in
+                    if let attributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path),
+                       let creationDate = attributes[.creationDate] as? Date {
+                        return abs(creationDate.timeIntervalSince(record.date)) < 60
+                    }
+                    return false
+                }
+            }
+            
+            unifiedRecords.append(UnifiedExportRecord(
+                exportRecord: record,
+                fileURL: matchingFile,
+                fileExists: matchingFile != nil
+            ))
+        }
+        
+        // Add any files that don't have corresponding export records
+        let recordedFileNames = Set(exportHistory.compactMap { $0.fileName })
+        let unmatchedFiles = exportFiles.filter { !recordedFileNames.contains($0.lastPathComponent) }
+        
+        for fileURL in unmatchedFiles {
+            // Create export record from file info
+            if let attributes = try? FileManager.default.attributesOfItem(atPath: fileURL.path),
+               let creationDate = attributes[.creationDate] as? Date,
+               let fileSize = attributes[.size] as? Int64 {
+                
+                let format: ExportFormat = fileURL.pathExtension == "db" ? .sqlite : .json
+                let fileName = fileURL.lastPathComponent
+                
+                let syntheticRecord = ExportRecord(
+                    date: creationDate,
+                    format: format,
+                    recordCount: 0, // Unknown for files without records
+                    fileSize: fileSize,
+                    duration: 0, // Unknown
+                    success: true, // Assume successful if file exists
+                    errorMessage: nil,
+                    isIncremental: false, // Unknown
+                    fileName: fileName,
+                    filePath: fileURL.path
+                )
+                
+                unifiedRecords.append(UnifiedExportRecord(
+                    exportRecord: syntheticRecord,
+                    fileURL: fileURL,
+                    fileExists: true
+                ))
+            }
+        }
+        
+        // Sort by date (newest first)
+        return unifiedRecords.sorted { $0.exportRecord.date > $1.exportRecord.date }
     }
 }

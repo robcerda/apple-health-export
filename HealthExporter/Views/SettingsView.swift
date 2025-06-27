@@ -2,6 +2,7 @@ import SwiftUI
 import HealthKit
 import UniformTypeIdentifiers
 import BackgroundTasks
+import UIKit
 
 struct SettingsView: View {
     @Binding var configuration: ExportConfiguration
@@ -12,6 +13,7 @@ struct SettingsView: View {
     @State private var endDate = Date()
     @State private var syncState = SyncState.load()
     @State private var showingDocumentPicker = false
+    @State private var refreshID = UUID()
     
     var body: some View {
         NavigationView {
@@ -49,6 +51,14 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showingDocumentPicker) {
             DocumentPickerView(onFolderSelected: handleDestinationSelected)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            // Force refresh of relative time displays when app becomes active
+            refreshID = UUID()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            // Force refresh of relative time displays when app becomes fully active
+            refreshID = UUID()
         }
     }
     
@@ -316,6 +326,7 @@ struct SettingsView: View {
                             Text("Last auto-export: \(lastAutoExport.relativeString)")
                                 .font(.caption2)
                                 .foregroundColor(.secondary)
+                                .id(refreshID) // Force refresh when refreshID changes
                         } else {
                             Text("No auto-exports yet - will run when due")
                                 .font(.caption2)
@@ -338,11 +349,13 @@ struct SettingsView: View {
     
     private var exportHistorySection: some View {
         Section("Export History") {
-            if syncState.exportHistory.isEmpty {
+            let unifiedHistory = getUnifiedExportHistory()
+            
+            if unifiedHistory.isEmpty {
                 Text("No exports yet")
                     .foregroundColor(.secondary)
             } else {
-                ForEach(syncState.exportHistory) { record in
+                ForEach(unifiedHistory) { record in
                     HStack {
                         Image(systemName: record.success ? "checkmark.circle.fill" : "xmark.circle.fill")
                             .foregroundColor(record.success ? .green : .red)
@@ -367,12 +380,27 @@ struct SettingsView: View {
                                         .background(Color.orange.opacity(0.2))
                                         .cornerRadius(4)
                                 }
+                                
+                                if !record.fileExists {
+                                    Text("File Missing")
+                                        .font(.caption)
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color.red.opacity(0.2))
+                                        .cornerRadius(4)
+                                }
                             }
                             
                             if record.success {
-                                Text("\(record.recordCount) records • \(record.formattedFileSize) • \(record.formattedDuration)")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                if record.recordCount > 0 {
+                                    Text("\(record.recordCount) records • \(record.formattedFileSize) • \(record.formattedDuration)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text("\(record.formattedFileSize)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             } else {
                                 Text(record.errorMessage ?? "Export failed")
                                     .font(.caption)
@@ -381,6 +409,14 @@ struct SettingsView: View {
                         }
                         
                         Spacer()
+                        
+                        if record.fileExists, let fileURL = record.fileURL {
+                            Button("Share") {
+                                shareFile(fileURL)
+                            }
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                        }
                     }
                     .padding(.vertical, 2)
                 }
@@ -410,6 +446,7 @@ struct SettingsView: View {
                     Text(lastExport.relativeString)
                         .foregroundColor(.secondary)
                 }
+                .id(refreshID) // Force refresh when refreshID changes
             }
             
             if let lastFull = syncState.lastFullExportDate {
@@ -419,6 +456,7 @@ struct SettingsView: View {
                     Text(lastFull.relativeString)
                         .foregroundColor(.secondary)
                 }
+                .id(refreshID) // Force refresh when refreshID changes
             }
             
             Button("Reset Sync State") {
@@ -533,6 +571,32 @@ struct SettingsView: View {
         }
     }
     
+    
+    private func getUnifiedExportHistory() -> [UnifiedExportRecord] {
+        let fileService = FileService()
+        return syncState.getUnifiedExportHistory(fileService: fileService)
+    }
+    
+    private func shareFile(_ fileURL: URL) {
+        let activityController = UIActivityViewController(
+            activityItems: [fileURL],
+            applicationActivities: nil
+        )
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let window = windowScene.windows.first,
+           let rootViewController = window.rootViewController {
+            
+            // For iPad support
+            if let popover = activityController.popoverPresentationController {
+                popover.sourceView = rootViewController.view
+                popover.sourceRect = CGRect(x: rootViewController.view.bounds.midX, y: rootViewController.view.bounds.midY, width: 0, height: 0)
+                popover.permittedArrowDirections = []
+            }
+            
+            rootViewController.present(activityController, animated: true)
+        }
+    }
     
     private func handleDestinationSelected(_ url: URL) {
         print("📁 Attempting to set destination: \(url.path)")

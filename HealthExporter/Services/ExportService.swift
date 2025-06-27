@@ -137,7 +137,9 @@ class ExportService: ObservableObject {
                 duration: duration,
                 success: true,
                 errorMessage: nil,
-                isIncremental: isIncremental
+                isIncremental: isIncremental,
+                fileName: fileURL.lastPathComponent,
+                filePath: fileURL.path
             )
             
             syncState.addExportRecord(exportRecord)
@@ -168,7 +170,9 @@ class ExportService: ObservableObject {
                 duration: duration,
                 success: false,
                 errorMessage: error.localizedDescription,
-                isIncremental: false
+                isIncremental: false,
+                fileName: nil,
+                filePath: nil
             )
             
             syncState.addExportRecord(exportRecord)
