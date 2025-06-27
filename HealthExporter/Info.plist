@@ -55,7 +55,7 @@
 	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
-		<string>background-app-refresh</string>
+		<string>background-fetch</string>
 		<string>background-processing</string>
 	</array>
 	<key>UILaunchScreen</key>
