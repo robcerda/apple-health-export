@@ -14,6 +14,7 @@ struct SettingsView: View {
     @State private var syncState = SyncState.load()
     @State private var showingDocumentPicker = false
     @State private var refreshID = UUID()
+    @State private var showingBackgroundInfo = false
     
     var body: some View {
         NavigationView {
@@ -361,8 +362,68 @@ struct SettingsView: View {
             }
             
             // Background task info
-            BackgroundTaskInfoView()
-                .padding(.top, 8)
+            Button(action: { showingBackgroundInfo = true }) {
+                HStack {
+                    Image(systemName: "info.circle")
+                        .foregroundColor(.blue)
+                    Text("Background Export Limitations")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                }
+            }
+            .sheet(isPresented: $showingBackgroundInfo) {
+                NavigationView {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text("📱 iOS Background Task Reality")
+                                .font(.headline)
+                            
+                            Text("iOS severely limits background app execution to preserve battery life. Even properly configured background tasks may not run when expected.")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                            
+                            Text("⚠️ What to Expect")
+                                .font(.headline)
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label("Background exports may only run when iOS decides", systemImage: "clock.badge.exclamationmark")
+                                Label("Frequency depends on your app usage patterns", systemImage: "chart.line.uptrend.xyaxis")
+                                Label("iOS learns from when you typically use the app", systemImage: "brain.head.profile")
+                                Label("System load and battery level affect execution", systemImage: "battery.25")
+                            }
+                            .font(.caption)
+                            
+                            Text("🚀 Improve Background Execution")
+                                .font(.headline)
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label("Use the app regularly at consistent times", systemImage: "clock.arrow.circlepath")
+                                Label("Keep Background App Refresh enabled for this app", systemImage: "arrow.clockwise")
+                                Label("Avoid force-quitting the app (swipe up to close)", systemImage: "hand.raised.slash")
+                                Label("Charge your device regularly", systemImage: "battery.100.bolt")
+                            }
+                            .font(.caption)
+                            
+                            Text("💡 Reliability Tip")
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .padding(.top)
+                            
+                            Text("The most reliable approach is to open the app periodically (daily/weekly) to ensure exports happen via our foreground fallback system.")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding()
+                    }
+                    .navigationTitle("Background Export Info")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Done") { showingBackgroundInfo = false }
+                        }
+                    }
+                }
+            }
         }
     }
     

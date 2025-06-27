@@ -169,9 +169,10 @@ Settings > General > Background App Refresh
 - Success rate varies based on user patterns
 
 #### **User Communication:**
-- Background task info view explains limitations
+- Inline background task info modal explains limitations
 - Clear status messages about last export times
 - Educational content about iOS restrictions
+- Built-in troubleshooting guidance
 
 ### **Why This Approach Works:**
 1. **Realistic expectations** - Users understand iOS limitations
