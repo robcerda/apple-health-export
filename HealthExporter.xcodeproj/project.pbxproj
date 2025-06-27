@@ -23,6 +23,7 @@
 		3D1A2B7C2C8E4DA000F8E1B7 /* DateFormatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D1A2B7B2C8E4DA000F8E1B7 /* DateFormatters.swift */; };
 		3D1A2B7E2C8E4DA500F8E1B7 /* ErrorHandling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D1A2B7D2C8E4DA500F8E1B7 /* ErrorHandling.swift */; };
 		3D1A2B812C8E4DBA00F8E1B7 /* AutoExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D1A2B822C8E4DBA00F8E1B7 /* AutoExportService.swift */; };
+		3D1A2B852C8E4DBA00F8E1B7 /* BackgroundTaskInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D1A2B842C8E4DBA00F8E1B7 /* BackgroundTaskInfoView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -45,6 +46,7 @@
 		3D1A2B7F2C8E4DB000F8E1B7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		3D1A2B802C8E4DB500F8E1B7 /* HealthExporter.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HealthExporter.entitlements; sourceTree = "<group>"; };
 		3D1A2B822C8E4DBA00F8E1B7 /* AutoExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AutoExportService.swift; sourceTree = "<group>"; };
+		3D1A2B842C8E4DBA00F8E1B7 /* BackgroundTaskInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundTaskInfoView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -126,6 +128,7 @@
 				3D1A2B5D2C8E4D5A00F8E1B7 /* ContentView.swift */,
 				3D1A2B772C8E4D9500F8E1B7 /* ProgressView.swift */,
 				3D1A2B792C8E4D9A00F8E1B7 /* SettingsView.swift */,
+				3D1A2B832C8E4DBA00F8E1B7 /* BackgroundTaskInfoView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -223,6 +226,7 @@
 				3D1A2B702C8E4D8000F8E1B7 /* HealthKitService.swift in Sources */,
 				3D1A2B5C2C8E4D5A00F8E1B7 /* HealthExporterApp.swift in Sources */,
 				3D1A2B812C8E4DBA00F8E1B7 /* AutoExportService.swift in Sources */,
+				3D1A2B852C8E4DBA00F8E1B7 /* BackgroundTaskInfoView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

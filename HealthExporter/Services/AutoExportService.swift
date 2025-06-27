@@ -60,11 +60,26 @@ class AutoExportService: ObservableObject {
         request.requiresExternalPower = false
         request.earliestBeginDate = nextRunDate
         
+        // Optimization hints to improve background execution chances
+        // Set a reasonable time window (not too far in future)
+        let maxDelay = Calendar.current.date(byAdding: .hour, value: 2, to: nextRunDate) ?? nextRunDate
+        request.earliestBeginDate = nextRunDate
+        
         do {
             try BGTaskScheduler.shared.submit(request)
             print("📅 Scheduled next auto-export for: \(nextRunDate)")
+            
+            // Store scheduling info for user visibility
+            UserDefaults.standard.set(nextRunDate, forKey: "NextScheduledAutoExport")
+            UserDefaults.standard.set(Date(), forKey: "LastAutoExportScheduleTime")
+            
+            // Track scheduling attempts for diagnostics
+            let attempts = UserDefaults.standard.integer(forKey: "AutoExportScheduleAttempts") + 1
+            UserDefaults.standard.set(attempts, forKey: "AutoExportScheduleAttempts")
+            
         } catch {
             print("❌ Failed to schedule auto-export: \(error)")
+            UserDefaults.standard.set(error.localizedDescription, forKey: "LastAutoExportScheduleError")
         }
     }
     

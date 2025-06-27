@@ -321,16 +321,31 @@ struct SettingsView: View {
                                 .foregroundColor(.green)
                         }
                         
-                        // Show last auto-export time if available
-                        if let lastAutoExport = UserDefaults.standard.object(forKey: "LastAutoExportTime") as? Date {
-                            Text("Last auto-export: \(lastAutoExport.relativeString)")
+                        // Show background task status
+                        VStack(alignment: .leading, spacing: 4) {
+                            if let lastAutoExport = UserDefaults.standard.object(forKey: "LastAutoExportTime") as? Date {
+                                Text("Last auto-export: \(lastAutoExport.relativeString)")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                                    .id(refreshID) // Force refresh when refreshID changes
+                            } else {
+                                Text("No auto-exports yet - will run when due or when app is opened")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            // Show next scheduled time if available
+                            if let nextScheduled = UserDefaults.standard.object(forKey: "NextScheduledAutoExport") as? Date {
+                                let isOverdue = nextScheduled < Date()
+                                Text("Next scheduled: \(nextScheduled.relativeString) \(isOverdue ? "(overdue - will run when app opens)" : "")")
+                                    .font(.caption2)
+                                    .foregroundColor(isOverdue ? .orange : .secondary)
+                            }
+                            
+                            // Show background task reality hint
+                            Text("Note: iOS may not run background tasks reliably - see info below")
                                 .font(.caption2)
-                                .foregroundColor(.secondary)
-                                .id(refreshID) // Force refresh when refreshID changes
-                        } else {
-                            Text("No auto-exports yet - will run when due")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
+                                .foregroundColor(.orange)
                         }
                     }
                 } else {
@@ -344,6 +359,10 @@ struct SettingsView: View {
                     }
                 }
             }
+            
+            // Background task info
+            BackgroundTaskInfoView()
+                .padding(.top, 8)
         }
     }
     
