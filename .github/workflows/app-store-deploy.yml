@@ -319,6 +319,25 @@ jobs:
         echo "🔑 Using API Key ID: $APP_STORE_CONNECT_API_KEY_ID"
         echo "🏢 Using Issuer ID: $APP_STORE_CONNECT_ISSUER_ID"
         
+        # CRITICAL: Test credentials with list-apps first
+        echo "🧪 TESTING CREDENTIALS FIRST with --list-apps..."
+        /Applications/Xcode_16.app/Contents/SharedFrameworks/ContentDeliveryServices.framework/Frameworks/AppStoreService.framework/Support/altool \
+          --list-apps \
+          --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+          --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
+          --verbose
+          
+        TEST_RESULT=$?
+        echo "📊 Credential test result: $TEST_RESULT"
+        
+        if [ $TEST_RESULT -ne 0 ]; then
+          echo "❌ CREDENTIAL TEST FAILED - Aborting upload"
+          echo "The same credentials that work locally are failing in GitHub Actions"
+          exit 1
+        else
+          echo "✅ CREDENTIAL TEST PASSED - Proceeding with upload"
+        fi
+        
         # Use altool with explicit path checking
         ALTOOL_PATH="/Applications/Xcode_16.app/Contents/SharedFrameworks/ContentDeliveryServices.framework/Frameworks/AppStoreService.framework/Support/altool"
         echo "Running altool at path '$ALTOOL_PATH'..."
