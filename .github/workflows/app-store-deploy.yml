@@ -217,6 +217,13 @@ jobs:
         echo "DEBUG: Checking export directory contents:"
         ls -la "$RUNNER_TEMP/export/" || echo "Export directory not found"
         
+        # Debug environment variables
+        echo "🔍 Debug Environment Variables:"
+        echo "API_KEY_ID: '$APP_STORE_CONNECT_API_KEY_ID'"
+        echo "ISSUER_ID: '$APP_STORE_CONNECT_ISSUER_ID'"
+        echo "PRIVATE_KEY length: ${#APP_STORE_CONNECT_PRIVATE_KEY} characters"
+        echo "PRIVATE_KEY starts with: '$(echo "$APP_STORE_CONNECT_PRIVATE_KEY" | head -c 30)...'"
+        
         # Find IPA file if not set
         if [ -z "$IPA_FILE" ]; then
           echo "IPA_FILE not set, searching for IPA file..."
@@ -231,30 +238,100 @@ jobs:
         
         echo "Using IPA file: $IPA_FILE"
         
-        # Create API key file in the right location
-        mkdir -p ~/.private_keys
-        echo "$APP_STORE_CONNECT_PRIVATE_KEY" > ~/.private_keys/AuthKey_$APP_STORE_CONNECT_API_KEY_ID.p8
-        chmod 600 ~/.private_keys/AuthKey_$APP_STORE_CONNECT_API_KEY_ID.p8
-        
-        # Upload to App Store Connect using modern approach
-        # First try with xcrun altool (still works as of 2024)
-        xcrun altool --upload-app \
-          -f "$IPA_FILE" \
-          --type ios \
-          --apiKey $APP_STORE_CONNECT_API_KEY_ID \
-          --apiIssuer $APP_STORE_CONNECT_ISSUER_ID \
-          --verbose || {
-          
-          # Fallback: Use App Store Connect API directly
-          echo "⚠️ altool failed, trying direct API upload..."
-          
-          # Alternative upload method using App Store Connect API
-          xcrun xcbeautify --version || echo "xcbeautify not available"
-          
-          # For now, we'll rely on altool as it's still supported
-          echo "❌ Upload failed - check certificates and Team ID"
+        # Validate environment variables
+        if [ -z "$APP_STORE_CONNECT_API_KEY_ID" ]; then
+          echo "❌ APP_STORE_CONNECT_API_KEY_ID is empty!"
           exit 1
-        }
+        fi
+        
+        if [ -z "$APP_STORE_CONNECT_ISSUER_ID" ]; then
+          echo "❌ APP_STORE_CONNECT_ISSUER_ID is empty!"
+          exit 1
+        fi
+        
+        if [ -z "$APP_STORE_CONNECT_PRIVATE_KEY" ]; then
+          echo "❌ APP_STORE_CONNECT_PRIVATE_KEY is empty!"
+          exit 1
+        fi
+        
+        # Create API key file in multiple locations that altool searches
+        mkdir -p ~/.private_keys
+        mkdir -p ~/.appstoreconnect/private_keys
+        mkdir -p ~/private_keys
+        mkdir -p ~/work/apple-health-export/apple-health-export/private_keys
+        
+        # Create the API key file in all potential locations with explicit variable expansion
+        API_KEY_FILENAME="AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+        echo "📄 Creating API key file: $API_KEY_FILENAME"
+        
+        echo "$APP_STORE_CONNECT_PRIVATE_KEY" > ~/.private_keys/$API_KEY_FILENAME
+        echo "$APP_STORE_CONNECT_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/$API_KEY_FILENAME
+        echo "$APP_STORE_CONNECT_PRIVATE_KEY" > ~/private_keys/$API_KEY_FILENAME
+        echo "$APP_STORE_CONNECT_PRIVATE_KEY" > ~/work/apple-health-export/apple-health-export/private_keys/$API_KEY_FILENAME
+        
+        # Set proper permissions
+        chmod 600 ~/.private_keys/$API_KEY_FILENAME
+        chmod 600 ~/.appstoreconnect/private_keys/$API_KEY_FILENAME
+        chmod 600 ~/private_keys/$API_KEY_FILENAME
+        chmod 600 ~/work/apple-health-export/apple-health-export/private_keys/$API_KEY_FILENAME
+        
+        # Verify the file was created and has correct content
+        echo "✅ API key files created:"
+        ls -la ~/.private_keys/$API_KEY_FILENAME 2>/dev/null || echo "Not found in ~/.private_keys"
+        ls -la ~/.appstoreconnect/private_keys/$API_KEY_FILENAME 2>/dev/null || echo "Not found in ~/.appstoreconnect/private_keys"
+        ls -la ~/private_keys/$API_KEY_FILENAME 2>/dev/null || echo "Not found in ~/private_keys"
+        ls -la ~/work/apple-health-export/apple-health-export/private_keys/$API_KEY_FILENAME 2>/dev/null || echo "Not found in project directory"
+        
+        # Verify file content
+        echo "🔍 Verifying API key file content:"
+        if [ -f ~/.private_keys/$API_KEY_FILENAME ]; then
+          echo "File exists: ~/.private_keys/$API_KEY_FILENAME"
+          echo "File size: $(wc -c < ~/.private_keys/$API_KEY_FILENAME) bytes"
+          echo "First line: $(head -1 ~/.private_keys/$API_KEY_FILENAME)"
+          echo "Last line: $(tail -1 ~/.private_keys/$API_KEY_FILENAME)"
+        fi
+        
+        # Upload to App Store Connect using altool
+        echo "🚀 Testing App Store Connect upload..."
+        echo "📱 Uploading: $IPA_FILE"
+        echo "🔑 Using API Key ID: $APP_STORE_CONNECT_API_KEY_ID"
+        echo "🏢 Using Issuer ID: $APP_STORE_CONNECT_ISSUER_ID"
+        
+        # Use altool with explicit path checking
+        ALTOOL_PATH="/Applications/Xcode_16.app/Contents/SharedFrameworks/ContentDeliveryServices.framework/Frameworks/AppStoreService.framework/Support/altool"
+        echo "Running altool at path '$ALTOOL_PATH'..."
+        
+        if [ -f "$ALTOOL_PATH" ]; then
+          # Use the specific altool path
+          "$ALTOOL_PATH" --upload-app \
+            -f "$IPA_FILE" \
+            --type ios \
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
+            --verbose
+        else
+          # Fallback to xcrun altool
+          echo "Using xcrun altool as fallback..."
+          xcrun altool --upload-app \
+            -f "$IPA_FILE" \
+            --type ios \
+            --apiKey "$APP_STORE_CONNECT_API_KEY_ID" \
+            --apiIssuer "$APP_STORE_CONNECT_ISSUER_ID" \
+            --verbose
+        fi
+        
+        # Check if upload was successful
+        if [ $? -eq 0 ]; then
+          echo "✅ Successfully uploaded to App Store Connect"
+        else
+          echo "❌ Upload failed - check API key configuration and Team ID"
+          echo "🔍 Troubleshooting:"
+          echo "- Verify APP_STORE_CONNECT_API_KEY_ID secret is correct"
+          echo "- Verify APP_STORE_CONNECT_ISSUER_ID secret is correct"
+          echo "- Verify APP_STORE_CONNECT_PRIVATE_KEY secret contains valid .p8 content"
+          echo "- Check that the API key has App Manager role in App Store Connect"
+          exit 1
+        fi
           
         echo "✅ Upload to App Store Connect completed"
           
