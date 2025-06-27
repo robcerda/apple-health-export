@@ -554,17 +554,27 @@ struct SettingsView: View {
             }
             
         case .weekly:
+            var weeklyComponents = DateComponents()
+            weeklyComponents.weekday = 1
+            weeklyComponents.hour = settings.timeOfDay.hour
+            weeklyComponents.minute = settings.timeOfDay.minute
+            
             let nextSunday = calendar.nextDate(
                 after: now,
-                matching: DateComponents(hour: settings.timeOfDay.hour, minute: settings.timeOfDay.minute, weekday: 1),
+                matching: weeklyComponents,
                 matchingPolicy: .nextTime
             )
             return nextSunday
             
         case .monthly:
+            var monthlyComponents = DateComponents()
+            monthlyComponents.day = 1
+            monthlyComponents.hour = settings.timeOfDay.hour
+            monthlyComponents.minute = settings.timeOfDay.minute
+            
             let nextMonth = calendar.nextDate(
                 after: now,
-                matching: DateComponents(day: 1, hour: settings.timeOfDay.hour, minute: settings.timeOfDay.minute),
+                matching: monthlyComponents,
                 matchingPolicy: .nextTime
             )
             return nextMonth

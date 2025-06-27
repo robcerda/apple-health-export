@@ -2,9 +2,13 @@ import Foundation
 import BackgroundTasks
 import UserNotifications
 
-@MainActor
 class AutoExportService: ObservableObject {
     static let shared = AutoExportService()
+    
+    // Static initializer to ensure background tasks are registered early
+    static func initialize() {
+        _ = shared
+    }
     
     private let backgroundTaskIdentifier = "com.healthexporter.auto-export"
     
@@ -15,24 +19,30 @@ class AutoExportService: ObservableObject {
     @Published var consecutiveFailures: Int = 0
     
     private init() {
+        // Register background tasks first, before MainActor isolation
         registerBackgroundTasks()
-        requestNotificationPermissions()
+        // Request notification permissions asynchronously
+        Task { @MainActor in
+            requestNotificationPermissions()
+        }
     }
     
     // MARK: - Background Task Registration
     
-    private func registerBackgroundTasks() {
+    private nonisolated func registerBackgroundTasks() {
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: backgroundTaskIdentifier,
             using: DispatchQueue.global(qos: .background)
         ) { [weak self] task in
-            self?.handleAutoExport(task: task as! BGProcessingTask)
+            Task {
+                await self?.handleAutoExport(task: task as! BGProcessingTask)
+            }
         }
     }
     
     // MARK: - Scheduling
     
-    func scheduleNextAutoExport() {
+    @MainActor func scheduleNextAutoExport() {
         guard let configuration = loadConfiguration(),
               configuration.autoExportEnabled else {
             print("📅 Auto-export is disabled, not scheduling")
@@ -86,18 +96,28 @@ class AutoExportService: ObservableObject {
             
         case .weekly:
             // Schedule for next Sunday at the specified time
+            var weeklyComponents = DateComponents()
+            weeklyComponents.weekday = 1
+            weeklyComponents.hour = settings.timeOfDay.hour
+            weeklyComponents.minute = settings.timeOfDay.minute
+            
             let nextSunday = calendar.nextDate(
                 after: now,
-                matching: DateComponents(weekday: 1, hour: settings.timeOfDay.hour, minute: settings.timeOfDay.minute),
+                matching: weeklyComponents,
                 matchingPolicy: .nextTime
             )
             return nextSunday
             
         case .monthly:
             // Schedule for first day of next month
+            var monthlyComponents = DateComponents()
+            monthlyComponents.day = 1
+            monthlyComponents.hour = settings.timeOfDay.hour
+            monthlyComponents.minute = settings.timeOfDay.minute
+            
             let nextMonth = calendar.nextDate(
                 after: now,
-                matching: DateComponents(day: 1, hour: settings.timeOfDay.hour, minute: settings.timeOfDay.minute),
+                matching: monthlyComponents,
                 matchingPolicy: .nextTime
             )
             return nextMonth
@@ -106,7 +126,7 @@ class AutoExportService: ObservableObject {
     
     // MARK: - Export Execution
     
-    private func handleAutoExport(task: BGProcessingTask) {
+    private func handleAutoExport(task: BGProcessingTask) async {
         print("🚀 Starting background auto-export task")
         
         var exportCompleted = false
@@ -171,7 +191,7 @@ class AutoExportService: ObservableObject {
         // Create services
         let fileService = FileService()
         let encryptionService = EncryptionService()
-        let healthKitService = HealthKitService()
+        let healthKitService = await MainActor.run { HealthKitService() }
         
         // Check HealthKit authorization in background
         let hasAuthorization = await withCheckedContinuation { continuation in
@@ -383,7 +403,7 @@ class AutoExportService: ObservableObject {
     
     // MARK: - Manual Trigger (for testing)
     
-    func triggerAutoExportNow() {
+    @MainActor func triggerAutoExportNow() {
         guard !isAutoExportInProgress else {
             print("⚠️ Auto-export already in progress")
             return
@@ -428,7 +448,7 @@ class AutoExportService: ObservableObject {
         return config
     }
     
-    private func requestNotificationPermissions() {
+    @MainActor private func requestNotificationPermissions() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { granted, error in
             if granted {
                 print("📱 Notification permissions granted")

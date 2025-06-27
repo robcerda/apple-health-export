@@ -1,15 +1,26 @@
 import SwiftUI
 import BackgroundTasks
+import Foundation
 
 @main
 struct HealthExporterApp: App {
+    
+    init() {
+        // Initialize AutoExportService early to register background tasks
+        // This must happen before the app finishes launching
+        print("📅 Initializing auto-export service during app launch...")
+        AutoExportService.initialize()
+        print("📅 Auto-export service initialized and background tasks registered")
+    }
+    
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .onAppear {
-                    // Setup background tasks for auto-export
-                    setupAutoExportBackgroundTasks()
-                    print("📱 App launched - auto-export background tasks registered")
+                    // Schedule auto-export if enabled
+                    Task { @MainActor in
+                        AutoExportService.shared.scheduleNextAutoExport()
+                    }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                     // Check for overdue exports when app becomes active
@@ -22,53 +33,45 @@ struct HealthExporterApp: App {
         }
     }
     
-    private func setupAutoExportBackgroundTasks() {
-        // Use the centralized AutoExportService instead of duplicating logic
-        let _ = AutoExportService.shared
-        print("📅 Auto-export service initialized and background tasks registered")
-        
-        // Schedule initial export if auto-export is enabled
-        AutoExportService.shared.scheduleNextAutoExport()
-    }
-    
-    
     private func checkAndRunOverdueExports() {
-        // Use the improved AutoExportService for foreground fallback
-        let autoExportService = AutoExportService.shared
-        
-        // Check if auto-export is enabled
-        guard let data = UserDefaults.standard.data(forKey: "ExportConfiguration"),
-              let config = try? JSONDecoder().decode(ExportConfiguration.self, from: data),
-              config.autoExportEnabled else {
-            return
-        }
-        
-        // Check if we need to run an overdue export
-        let settings = config.autoExportSettings
-        let now = Date()
-        
-        // Calculate the last time an export should have run
-        let lastScheduledTime = getLastScheduledExportTime(settings: settings, relativeTo: now)
-        
-        // Check when we last actually exported
-        let lastExportTime = autoExportService.lastAutoExportDate
-        
-        let shouldRun: Bool
-        if let lastExport = lastExportTime {
-            // If our last export was before the last scheduled time, we're overdue
-            shouldRun = lastExport < lastScheduledTime
-        } else {
-            // No previous export record, so we should run if we're past the scheduled time
-            shouldRun = now > lastScheduledTime
-        }
-        
-        if shouldRun {
-            print("🚀 Auto-export is overdue, triggering foreground fallback...")
-            print("⏰ Should have run at: \(lastScheduledTime)")
-            print("📅 Last export: \(lastExportTime?.description ?? "Never")")
+        Task { @MainActor in
+            // Use the improved AutoExportService for foreground fallback
+            let autoExportService = AutoExportService.shared
             
-            // Trigger the auto-export using the service
-            autoExportService.triggerAutoExportNow()
+            // Check if auto-export is enabled
+            guard let data = UserDefaults.standard.data(forKey: "ExportConfiguration"),
+                  let config = try? JSONDecoder().decode(ExportConfiguration.self, from: data),
+                  config.autoExportEnabled else {
+                return
+            }
+            
+            // Check if we need to run an overdue export
+            let settings = config.autoExportSettings
+            let now = Date()
+            
+            // Calculate the last time an export should have run
+            let lastScheduledTime = getLastScheduledExportTime(settings: settings, relativeTo: now)
+            
+            // Check when we last actually exported
+            let lastExportTime = autoExportService.lastAutoExportDate
+            
+            let shouldRun: Bool
+            if let lastExport = lastExportTime {
+                // If our last export was before the last scheduled time, we're overdue
+                shouldRun = lastExport < lastScheduledTime
+            } else {
+                // No previous export record, so we should run if we're past the scheduled time
+                shouldRun = now > lastScheduledTime
+            }
+            
+            if shouldRun {
+                print("🚀 Auto-export is overdue, triggering foreground fallback...")
+                print("⏰ Should have run at: \(lastScheduledTime)")
+                print("📅 Last export: \(lastExportTime?.description ?? "Never")")
+                
+                // Trigger the auto-export using the service
+                autoExportService.triggerAutoExportNow()
+            }
         }
     }
     
